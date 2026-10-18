@@ -48,7 +48,7 @@ enum ProfilePictures {
     static func picture(_ key: ProfilePictureKey) async -> NSImage? {
         if let known = cached(key) { return known }
         guard let name = key.picture.file else { return nil }
-        let file = ChromeProfilePicture.file(profile: key.profile, name: name)
+        let file = ChromeProfilePicture.file(browser: .chrome, profile: key.profile, name: name)!
         let result = await Task.detached(priority: .userInitiated) { ChromeProfilePicture.picture(in: file) }.value
         var image: NSImage?
         switch result {

@@ -261,7 +261,7 @@ final class AddTab: NSObject, NSWindowDelegate {
         }
         expected = contents?.text
 
-        let catalog = try? Inputs.profiles()
+        let catalog: ProfileCatalog? = { if case let .read(c) = Inputs.catalog(for: .chrome) { c } else { nil } }()
         let profile = catalog?.profile(forTitle: tab.title)
         var draft = ConfigDraft(contents.map { ConfigReader.read($0.text) } ?? ConfigSource())
         let subject: AddTabModel.Subject

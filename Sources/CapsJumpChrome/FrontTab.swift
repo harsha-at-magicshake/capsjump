@@ -1,7 +1,8 @@
-// The tab in front of Chrome, read the way a jump reads Chrome: the front window's id and
+// The tab in front of a browser, read the way a jump reads a browser: the front window's id and
 // active tab from Apple Events, every window's whole title from Accessibility, and the two
 // paired by title, so the front window's title (which ends in its profile's label) is
-// known. Read before any CapsJump window opens, while Chrome's window order is the user's.
+// known. Read before any CapsJump window opens, while the browser's window order is the
+// user's.
 
 import AppKit
 import CapsJumpCore
@@ -19,11 +20,12 @@ public struct FrontTab: Sendable, Equatable {
 
 @MainActor
 public enum FrontTabReader {
-    /// The active tab of Chrome's front window; nil when Chrome isn't running or shows no window.
-    public static func read() throws(ChromeError) -> FrontTab? {
-        guard let chrome = ChromeLauncher.runningChrome else { return nil }
-        let axWindows = try ChromeAccessibility.windows(of: chrome)
-        let scripting = try ChromeScripting()
+    /// The active tab of the browser's front window; nil when it isn't running or shows no
+    /// window.
+    public static func read(browser: Browser) throws(ChromeError) -> FrontTab? {
+        guard let app = ChromeLauncher.running(browser) else { return nil }
+        let axWindows = try ChromeAccessibility.windows(of: app, browser: browser)
+        let scripting = try ChromeScripting(browser: browser)
         let windows = try scripting.windows()
         guard let front = windows.first else { return nil }
         let tabs = try scripting.tabs(windowID: front.id)

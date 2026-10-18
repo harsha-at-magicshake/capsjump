@@ -87,8 +87,8 @@ public struct ProfileCatalog: Sendable, Equatable {
 
         public var description: String {
             switch self {
-            case .notJSON: "Chrome's Local State is not readable JSON"
-            case .noProfiles: "Chrome's Local State lists no profiles"
+            case .notJSON: "it is not readable JSON"
+            case .noProfiles: "it lists no profiles"
             }
         }
     }

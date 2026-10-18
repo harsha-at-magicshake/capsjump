@@ -146,7 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func addCurrentTab() {
         enqueue { [self] in
             do throws(ChromeError) {
-                addTab.open(try FrontTabReader.read())
+                addTab.open(try FrontTabReader.read(browser: .chrome))
             } catch {
                 fail(error.description)
                 if error.isMissingPermission && !setupShown {
@@ -183,11 +183,6 @@ extension JumpError {
     }
 }
 
-extension ChromeError {
-    var isMissingPermission: Bool {
-        self == .accessibilityDenied || self == .automationDenied
-    }
-}
 
 extension Duration {
     var milliseconds: Int64 {

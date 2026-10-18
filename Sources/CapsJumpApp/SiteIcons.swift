@@ -45,7 +45,7 @@ enum SiteIcons {
 
     static func icon(_ key: SiteIconKey) async -> SiteIconImage? {
         if let known = cache[key] { return known }
-        let file = ChromeFavicons.file(profile: key.profile)
+        let file = ChromeFavicons.file(browser: .chrome, profile: key.profile)!
         let lookup = key.lookup
         let result = await Task.detached(priority: .userInitiated) { () -> Result<(Data, IconTone), ChromeFavicons.Missing> in
             ChromeFavicons.icon(for: lookup, in: file).flatMap { data in

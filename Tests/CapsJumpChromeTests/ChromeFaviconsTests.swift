@@ -121,6 +121,8 @@ import Testing
 
     @Test func theFileIsBesideTheProfilesOtherData() {
         let home = URL(fileURLWithPath: "/Users/alex")
-        #expect(ChromeFavicons.file(profile: "Profile 1", home: home).path == "/Users/alex/Library/Application Support/Google/Chrome/Profile 1/Favicons")
+        #expect(ChromeFavicons.file(browser: .chrome, profile: "Profile 1", home: home)?.path == "/Users/alex/Library/Application Support/Google/Chrome/Profile 1/Favicons")
+        #expect(ChromeFavicons.file(browser: .brave, profile: "Default", home: home)?.path == "/Users/alex/Library/Application Support/BraveSoftware/Brave-Browser/Default/Favicons")
+        #expect(ChromeFavicons.file(browser: .safari, profile: "Default", home: home) == nil)
     }
 }

@@ -1,19 +1,20 @@
-// One jump, live: read the config and Chrome's profiles afresh (so edits need no reload),
-// gather Chrome's windows and titles, let Core decide, and carry the decision out.
+// One jump, live: read the config, the default browser and the profile lists afresh (so
+// edits need no reload), place the site in its browser, gather that browser's windows and
+// titles, let Core decide, and carry the decision out.
 
 import AppKit
 import CapsJumpCore
 
 public enum Outcome: Sendable, Equatable, CustomStringConvertible {
-    case focused(site: String, windowID: String, tabIndex: Int)
-    case opened(site: String, profileDirectory: String, reason: OpenReason)
+    case focused(site: String, browser: String, windowID: String, tabIndex: Int)
+    case opened(site: String, browser: String, profileDirectory: String?, reason: OpenReason)
 
     public var description: String {
         switch self {
-        case let .focused(site, windowID, tabIndex):
-            "\(site): focused tab \(tabIndex) of window \(windowID)"
-        case let .opened(site, profileDirectory, reason):
-            "\(site): opened in \(profileDirectory) (\(reason.rawValue))"
+        case let .focused(site, browser, windowID, tabIndex):
+            "\(site): focused tab \(tabIndex) of \(browser) window \(windowID)"
+        case let .opened(site, browser, profileDirectory, reason):
+            "\(site): opened in \(browser)" + (profileDirectory.map { ", \($0)" } ?? "") + " (\(reason.rawValue))"
         }
     }
 }
@@ -23,8 +24,7 @@ public enum JumpError: LocalizedError, Equatable, CustomStringConvertible {
     case unreadable(path: String, reason: String)
     case config(ConfigError)
     case unknownSite(String, known: [String])
-    case profiles(String)
-    case resolve(site: String, ResolveError)
+    case place(site: String, PlaceError)
     case chrome(site: String, ChromeError)
 
     public var description: String {
@@ -37,9 +37,7 @@ public enum JumpError: LocalizedError, Equatable, CustomStringConvertible {
             "the config has problems (`capsjump check` lists them):\n\(error)"
         case let .unknownSite(name, known):
             "no site `\(name)` in the config" + (known.isEmpty ? "" : "; it has: \(known.joined(separator: ", "))")
-        case let .profiles(reason):
-            reason
-        case let .resolve(site, error):
+        case let .place(site, error):
             "\(site): \(error)"
         case let .chrome(site, error):
             "\(site): \(error)"
@@ -49,7 +47,8 @@ public enum JumpError: LocalizedError, Equatable, CustomStringConvertible {
     public var errorDescription: String? { description }
 }
 
-/// Reads the two files every jump and check starts from.
+/// Reads the files every jump and check starts from: the config and each browser's
+/// profile list.
 public enum Inputs {
     public static func config(at url: URL = Paths.config()) throws(JumpError) -> Config {
         let text: String
@@ -67,27 +66,45 @@ public enum Inputs {
         }
     }
 
-    /// Chrome's list only, until every browser's is read (temporary).
-    public static func chromeOnly(_ browser: Browser) -> CatalogRead {
-        guard browser == .chrome else { return .missing(path: browser.localState()?.path ?? "") }
-        return (try? profiles()).map(CatalogRead.read) ?? .missing(path: Browser.chrome.localState()!.path)
-    }
-
-    public static func profiles(at url: URL = Browser.chrome.localState()!) throws(JumpError) -> ProfileCatalog {
-        guard let data = FileManager.default.contents(atPath: url.path) else {
-            throw .profiles("Chrome's profile list is missing at \(url.path); has Chrome been opened on this Mac?")
+    /// The browser's profile list, or why it can't be used: missing, refused by macOS, or
+    /// not a profile list.
+    public static func catalog(for browser: Browser, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> CatalogRead {
+        guard let url = browser.localState(home: home) else {
+            return .unreadable("\(browser) has no profiles CapsJump can read")
+        }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            return .missing(path: url.path)
+        } catch let error as CocoaError where error.code == .fileReadNoPermission {
+            return .refused(path: url.path)
+        } catch {
+            return .unreadable("\(browser)'s profile list at \(url.path) can't be read: \(error.localizedDescription)")
         }
         do {
-            return try ProfileCatalog.parse(localState: data)
+            return .read(try ProfileCatalog.parse(localState: data))
         } catch {
-            throw .profiles(error.description)
+            return .unreadable("\(browser)'s profile list at \(url.path) can't be used: \(error)")
+        }
+    }
+
+    /// Reads each browser's list at most once: for one jump, or one check.
+    public static func catalogs() -> (Browser) -> CatalogRead {
+        var read: [Browser: CatalogRead] = [:]
+        return { browser in
+            if let known = read[browser] { return known }
+            let fresh = catalog(for: browser)
+            read[browser] = fresh
+            return fresh
         }
     }
 }
 
 @MainActor
 public final class Jumper {
-    private var scripting: ChromeScripting?
+    /// One compiled script per browser, by bundle id.
+    private var scripting: [String: ChromeScripting] = [:]
 
     public init() {}
 
@@ -96,56 +113,54 @@ public final class Jumper {
         guard let site = config.site(named: name) else {
             throw .unknownSite(name, known: config.sites.map(\.name))
         }
-        let catalog = try Inputs.profiles()
-        let target: Target
+        let destination: Destination
         do {
-            target = try Resolver.resolve(site, in: catalog)
+            destination = try Placement.place(site, defaultBrowser: Browsers.defaultBrowser(), catalog: Inputs.catalogs())
         } catch {
-            throw .resolve(site: name, error)
+            throw .place(site: name, error)
         }
         do {
-            return try await perform(target)
+            return try await perform(destination)
         } catch {
             throw .chrome(site: name, error)
         }
     }
 
-    private func perform(_ target: Target) async throws(ChromeError) -> Outcome {
-        let chrome = ChromeLauncher.runningChrome
+    private func perform(_ destination: Destination) async throws(ChromeError) -> Outcome {
+        let browser = destination.browser
+        let app = browser.support == .full ? ChromeLauncher.running(browser) : nil
         var windows: [ChromeWindow] = []
         var axWindows: [AXWindow] = []
         var scripting: ChromeScripting?
-        if let chrome, target.canFocus {
-            axWindows = try ChromeAccessibility.windows(of: chrome)
-            if self.scripting == nil {
-                self.scripting = try ChromeScripting()
+        if let app, destination.target?.canFocus ?? true {
+            axWindows = try ChromeAccessibility.windows(of: app, browser: browser)
+            if self.scripting[browser.bundleID] == nil {
+                self.scripting[browser.bundleID] = try ChromeScripting(browser: browser)
             }
-            scripting = self.scripting
+            scripting = self.scripting[browser.bundleID]
             windows = try scripting?.windows() ?? []
         }
 
-        // Chrome only until the live side takes a browser.
-        let destination = Destination(site: target.site, browser: .chrome, target: target, fellBack: false, isDefault: true, windowLabel: target.label)
         let action = try Jump.decide(
             destination: destination,
-            running: chrome != nil,
+            running: app != nil,
             windows: windows,
             titles: axWindows.map(\.title)
         ) { (id: String) throws(ChromeError) -> WindowTabs in
-            guard let scripting else { throw .windowGone }
+            guard let scripting else { throw .windowGone(browser.displayName) }
             return try scripting.tabs(windowID: id)
         }
 
         switch action {
         case let .focus(windowID, tabIndex, titleIndex):
-            guard let scripting, let chrome else { throw .windowGone }
+            guard let scripting, let app else { throw .windowGone(browser.displayName) }
             try scripting.focus(windowID: windowID, tabIndex: tabIndex)
-            chrome.activate()
+            app.activate()
             ChromeAccessibility.raise(axWindows[titleIndex].element)
-            return .focused(site: target.site.name, windowID: windowID, tabIndex: tabIndex)
+            return .focused(site: destination.site.name, browser: browser.displayName, windowID: windowID, tabIndex: tabIndex)
         case let .open(profileDirectory, url, reason):
-            try await ChromeLauncher.open(url, profileDirectory: profileDirectory ?? target.profile.directory)
-            return .opened(site: target.site.name, profileDirectory: profileDirectory ?? target.profile.directory, reason: reason)
+            try await ChromeLauncher.open(url, in: browser, profileDirectory: profileDirectory)
+            return .opened(site: destination.site.name, browser: browser.displayName, profileDirectory: profileDirectory, reason: reason)
         }
     }
 }

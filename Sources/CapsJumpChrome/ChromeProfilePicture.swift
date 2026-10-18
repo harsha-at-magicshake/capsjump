@@ -1,5 +1,5 @@
-// A Chrome profile's Google picture, read from the file Chrome has already saved in the
-// profile's folder (a 256-pixel PNG when written), made small enough for a list row and a
+// A profile's Google picture, read from the file its browser (Chrome, or one built like it)
+// has already saved in the profile's folder (a 256-pixel PNG when written), made small enough for a list row and a
 // menu. Nothing goes over the network: Local State also names the URL Chrome downloaded it
 // from, and that is never read. The picture is decoded at its small size, never whole, and
 // written back as a PNG, so what crosses to the window is bytes. A file that is missing or
@@ -27,9 +27,10 @@ public enum ChromeProfilePicture {
     /// The largest side kept, in pixels: 16 points at twice the screen's scale, with room.
     public static let largest = 64
 
-    /// The picture file of a Chrome profile folder such as `Profile 1`.
-    public static func file(profile: String, name: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
-        Browser.chrome.data(home: home)!.appendingPathComponent(profile).appendingPathComponent(name)
+    /// The picture file of a profile folder such as `Profile 1`; nil for a browser
+    /// CapsJump reads no profiles from.
+    public static func file(browser: Browser, profile: String, name: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL? {
+        browser.profileFolder(profile, home: home)?.appendingPathComponent(name)
     }
 
     /// The picture as a PNG of at most `largest` pixels a side.

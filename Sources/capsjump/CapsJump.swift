@@ -30,7 +30,7 @@ struct Init: ParsableCommand {
         guard !FileManager.default.fileExists(atPath: path.path) else {
             throw ValidationError("\(path.path) already exists; it was left as it is")
         }
-        let catalog = try? Inputs.profiles()
+        let catalog: ProfileCatalog? = { if case let .read(c) = Inputs.catalog(for: Browsers.defaultBrowser()) { c } else { nil } }()
         try ConfigFile(url: path).write(StarterConfig.config(catalog: catalog), replacing: nil)
         print("wrote \(path.path)")
         if catalog == nil {
@@ -44,7 +44,11 @@ struct Profiles: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "List Chrome's profiles: folder, account and window label.")
 
     func run() throws {
-        let catalog = try Inputs.profiles()
+        let browser = Browsers.defaultBrowser()
+        let read = Inputs.catalog(for: browser)
+        guard case let .read(catalog) = read else {
+            throw ValidationError(read.problem(for: browser) ?? "")
+        }
         let rows = catalog.profiles.map { profile in
             [profile.directory, profile.email.isEmpty ? "(not signed in)" : profile.email, profile.name,
              profile.windowLabel + (catalog.sharingLabel(with: profile).isEmpty ? "" : "  *")]
@@ -64,8 +68,8 @@ struct Check: ParsableCommand {
         var findings = Checkup.run(
             configText: try? String(contentsOf: configPath, encoding: .utf8),
             configPath: configPath.path,
-            defaultBrowser: .chrome,
-            catalog: Inputs.chromeOnly,
+            defaultBrowser: Browsers.defaultBrowser(),
+            catalog: Inputs.catalogs(),
             lookup: Lookup.thisMac
         )
         findings.append(LinkHandler.finding())

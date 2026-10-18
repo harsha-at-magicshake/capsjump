@@ -14,7 +14,7 @@ enum Setup {
     /// Chrome is closed and does not count.
     static func somethingMissing(notifier: Notifier) async -> Bool {
         if Permissions.accessibility(prompt: false) != .granted { return true }
-        if [.denied, .notAsked].contains(await Permissions.automation(ask: false)) { return true }
+        if [.denied, .notAsked].contains(await Permissions.automation(of: .chrome, ask: false)) { return true }
         return await notifier.state == .notAsked
     }
 
@@ -23,8 +23,8 @@ enum Setup {
         var automation = PermissionState.unknown
         var chromeProblem: String?
         do {
-            _ = try await ChromeLauncher.start()
-            automation = await Permissions.automation(ask: true)
+            _ = try await ChromeLauncher.start(.chrome)
+            automation = await Permissions.automation(of: .chrome, ask: true)
         } catch {
             chromeProblem = error.description
         }

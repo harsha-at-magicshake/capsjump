@@ -72,7 +72,7 @@ final class EditorModel: ObservableObject {
     var onChange: (@MainActor () -> Void)?
 
     let file = ConfigFile()
-    let catalog = try? Inputs.profiles()
+    let catalog: ProfileCatalog? = { if case let .read(c) = Inputs.catalog(for: .chrome) { c } else { nil } }()
     let lookup = Lookup.thisMac
     /// What the file held when read or last saved; nil when there was no file.
     private(set) var expected: String?

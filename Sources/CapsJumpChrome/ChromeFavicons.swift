@@ -1,5 +1,5 @@
-// A site's icon, read from what Chrome has already saved on this Mac: each profile keeps
-// the icons of the pages it has shown in a SQLite file, `Favicons`, beside its other data.
+// A site's icon, read from what its browser (Chrome, or one built like it) has already
+// saved on this Mac: each profile keeps the icons of the pages it has shown in a SQLite file, `Favicons`, beside its other data.
 // Nothing goes over the network. Chrome holds that file locked while it runs, so it is
 // opened read-only and immutable: no lock is taken, so reading can never block or slow
 // Chrome, at the price that a read racing one of Chrome's writes may see a torn page,
@@ -34,9 +34,10 @@ public enum ChromeFavicons {
     /// The largest icon kept, in pixels; Chrome keeps 16 and 32 for a page's favicon.
     static let largest = 64
 
-    /// The `Favicons` file of a Chrome profile folder such as `Profile 1`.
-    public static func file(profile: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
-        Browser.chrome.data(home: home)!.appendingPathComponent(profile).appendingPathComponent("Favicons")
+    /// The `Favicons` file of a profile folder such as `Profile 1`; nil for a browser
+    /// CapsJump reads no profiles from.
+    public static func file(browser: Browser, profile: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL? {
+        browser.profileFolder(profile, home: home)?.appendingPathComponent("Favicons")
     }
 
     /// The PNG Chrome keeps for the lookup's page, else the one most pages under its

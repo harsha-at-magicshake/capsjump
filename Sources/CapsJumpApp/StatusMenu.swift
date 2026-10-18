@@ -68,7 +68,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             menu.addItem(pause)
         }
         let addTab = action("Add Current Tab…", #selector(addTab))
-        addTab.isEnabled = ChromeLauncher.runningChrome != nil
+        addTab.isEnabled = ChromeLauncher.running(.chrome) != nil
         menu.addItem(addTab)
         menu.addItem(action("Edit Config…", #selector(editConfig)))
         menu.addItem(action("Open Config File", #selector(openConfigFile)))
@@ -114,8 +114,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let findings = Checkup.run(
             configText: try? String(contentsOf: configPath, encoding: .utf8),
             configPath: configPath.path,
-            defaultBrowser: .chrome,
-            catalog: Inputs.chromeOnly,
+            defaultBrowser: Browsers.defaultBrowser(),
+            catalog: Inputs.catalogs(),
             lookup: Lookup.thisMac
         ) + KeyState.findings(config: try? Inputs.config(), running: true)
 
@@ -145,7 +145,7 @@ enum ConfigFileOpener {
     static func open() {
         let url = Paths.config()
         if !FileManager.default.fileExists(atPath: url.path) {
-            _ = try? ConfigFile(url: url).write(StarterConfig.config(catalog: try? Inputs.profiles()), replacing: nil)
+            _ = try? ConfigFile(url: url).write(StarterConfig.config(catalog: { if case let .read(c) = Inputs.catalog(for: Browsers.defaultBrowser()) { c } else { nil } }()), replacing: nil)
         }
         if NSWorkspace.shared.urlForApplication(toOpen: url) != nil, NSWorkspace.shared.open(url) { return }
         // No app claims .yaml files: plain text in TextEdit.

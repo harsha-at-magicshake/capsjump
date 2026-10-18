@@ -1,7 +1,8 @@
-// Chrome through Apple Events: its windows' ids and names, a window's tabs, and focusing a
-// tab. One compiled script holds three handlers, and each call passes its values as typed
-// Apple Event parameters, so no value is ever spliced into script text. Chrome reports
-// window ids as text, and they go back to it as text.
+// A browser with Chrome's scripting, through Apple Events: its windows' ids and names, a
+// window's tabs, and focusing a tab. One compiled script per browser holds three handlers;
+// only the browser's bundle id is written into the script text, and each call passes its
+// values as typed Apple Event parameters, so no value from a page is ever spliced into it.
+// Chrome reports window ids as text, and they go back to it as text.
 
 import AppKit
 import Carbon
@@ -9,22 +10,22 @@ import CapsJumpCore
 
 @MainActor
 public final class ChromeScripting {
-    private static let source = """
+    private static func source(_ bundleID: String) -> String { """
     on windowlist()
-    	tell application id "\(Browser.chrome.bundleID)"
+    	tell application id "\(bundleID)"
     		return {id of every window, name of every window}
     	end tell
     end windowlist
 
     on tablist(wid)
-    	tell application id "\(Browser.chrome.bundleID)"
+    	tell application id "\(bundleID)"
     		set w to window id wid
     		return {URL of every tab of w, active tab index of w}
     	end tell
     end tablist
 
     on focustab(wid, tabIdx)
-    	tell application id "\(Browser.chrome.bundleID)"
+    	tell application id "\(bundleID)"
     		set w to window id wid
     		if minimized of w then set minimized of w to false
     		set active tab index of w to tabIdx
@@ -32,17 +33,19 @@ public final class ChromeScripting {
     		activate
     	end tell
     end focustab
-    """
+    """ }
 
     private let script: NSAppleScript
+    private let browser: String
 
-    public init() throws(ChromeError) {
-        guard let script = NSAppleScript(source: Self.source) else {
-            throw .script(code: 0, message: "the script could not be created")
+    public init(browser: Browser) throws(ChromeError) {
+        self.browser = browser.displayName
+        guard let script = NSAppleScript(source: Self.source(browser.bundleID)) else {
+            throw .script(browser.displayName, code: 0, message: "the script could not be created")
         }
         var error: NSDictionary?
         guard script.compileAndReturnError(&error) else {
-            throw Self.chromeError(error)
+            throw Self.chromeError(error, browser: browser.displayName)
         }
         self.script = script
     }
@@ -69,7 +72,7 @@ public final class ChromeScripting {
         return WindowTabs(windowID: windowID, urls: urls, activeIndex: active)
     }
 
-    /// Activates the tab, brings its window to Chrome's front and activates Chrome.
+    /// Activates the tab, brings its window to the browser's front and activates the browser.
     public func focus(windowID: String, tabIndex: Int) throws(ChromeError) {
         _ = try call("focustab", NSAppleEventDescriptor(string: windowID), NSAppleEventDescriptor(int32: Int32(tabIndex)))
     }
@@ -91,18 +94,18 @@ public final class ChromeScripting {
 
         var error: NSDictionary?
         let result = script.executeAppleEvent(event, error: &error)
-        if error != nil { throw Self.chromeError(error) }
+        if error != nil { throw Self.chromeError(error, browser: browser) }
         return result
     }
 
-    private static func chromeError(_ info: NSDictionary?) -> ChromeError {
+    private static func chromeError(_ info: NSDictionary?, browser: String) -> ChromeError {
         let code = (info?[NSAppleScript.errorNumber] as? Int) ?? 0
         let message = (info?[NSAppleScript.errorMessage] as? String) ?? "unknown error"
         switch code {
-        case -1743: return .automationDenied   // errAEEventNotPermitted
-        case -1728, -1719, -600: return .windowGone  // no such object, bad index, Chrome quit
-        case -10814: return .notInstalled             // kLSApplicationNotFoundErr
-        default: return .script(code: code, message: message)
+        case -1743: return .automationDenied(browser)   // errAEEventNotPermitted
+        case -1728, -1719, -600: return .windowGone(browser)  // no such object, bad index, the browser quit
+        case -10814: return .notInstalled(browser)             // kLSApplicationNotFoundErr
+        default: return .script(browser, code: code, message: message)
         }
     }
 }

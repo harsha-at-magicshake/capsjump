@@ -1,9 +1,10 @@
-// Chrome's windows through Accessibility: the whole window titles, which end in the
-// profile's label, and raising one exact window. Read straight from Chrome's process, so
-// no second Automation grant (for System Events) is needed.
+// A browser's windows through Accessibility: the whole window titles, which end in the
+// profile's label, and raising one exact window. Read straight from the browser's process,
+// so no second Automation grant (for System Events) is needed.
 
 import AppKit
 import ApplicationServices
+import CapsJumpCore
 
 public struct AXWindow {
     public let title: String
@@ -14,8 +15,8 @@ public struct AXWindow {
 public enum ChromeAccessibility {
     public static var isTrusted: Bool { AXIsProcessTrusted() }
 
-    /// Chrome's standard windows (minimized ones included), front to back.
-    public static func windows(of app: NSRunningApplication) throws(ChromeError) -> [AXWindow] {
+    /// The browser's standard windows (minimized ones included), front to back.
+    public static func windows(of app: NSRunningApplication, browser: Browser) throws(ChromeError) -> [AXWindow] {
         guard isTrusted else { throw .accessibilityDenied }
         let element = AXUIElementCreateApplication(app.processIdentifier)
         var value: CFTypeRef?
@@ -24,7 +25,7 @@ public enum ChromeAccessibility {
         case .success: break
         case .apiDisabled: throw .accessibilityDenied
         case .noValue: return []
-        default: throw .accessibility(code: status.rawValue)
+        default: throw .accessibility(browser.displayName, code: status.rawValue)
         }
         let windows = value as? [AXUIElement] ?? []
         return windows.compactMap { window in
@@ -33,7 +34,7 @@ public enum ChromeAccessibility {
         }
     }
 
-    /// Un-minimizes the window and raises it above Chrome's others.
+    /// Un-minimizes the window and raises it above the browser's others.
     public static func raise(_ window: AXUIElement) {
         AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
         AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
