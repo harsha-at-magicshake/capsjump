@@ -61,7 +61,7 @@ struct Check: ParsableCommand {
 
     func run() throws {
         let configPath = Paths.config()
-        let statePath = Paths.chromeLocalState()
+        let statePath = Browser.chrome.localState()!
         var findings = Checkup.run(
             configText: try? String(contentsOf: configPath, encoding: .utf8),
             configPath: configPath.path,

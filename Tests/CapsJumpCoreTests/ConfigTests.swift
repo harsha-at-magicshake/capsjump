@@ -81,7 +81,6 @@ import Testing
             "unknown key `extra`",
             "line 2: sites[0] (GitHub): unknown key `acount`",
             "sites[0] (GitHub): name `GitHub` may use only lower-case letters",
-            "sites[0] (GitHub): give `account`",
             "sites[0] (GitHub): `open` must be an http or https URL, not `ftp://github.com`",
             "sites[1] (_setup): name `_setup` starts with `_`",
             "sites[1] (_setup): `match` entry `https://x.com/` must not carry a scheme; write it as `x.com/`",

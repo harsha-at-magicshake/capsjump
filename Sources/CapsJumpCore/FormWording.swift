@@ -16,8 +16,10 @@ public enum FormWording {
             return "Give it a name."
         case message.hasPrefix("name `") && message.contains("is already used by"):
             return "Another site is already called “\(first)”."
-        case message.hasPrefix("give `account`"):
-            return "Pick the account this site opens in."
+        case message.hasPrefix("`browser` must be one of"):
+            return "Pick a browser CapsJump knows, not “\(values.last ?? "")”."
+        case message.contains(" has no profiles CapsJump can read; remove"):
+            return "\(message.components(separatedBy: " has no profiles").first ?? "This browser") has no accounts CapsJump can read; pick None, or another browser."
         case message == "`open` is missing", message == "`open` must be a non-empty text":
             return "Give the page it opens."
         case message.hasPrefix("`open` must be an http or https URL"):

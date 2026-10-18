@@ -15,7 +15,7 @@ public enum ConfigWriter {
     static let header = """
     \(marker)
     # Hold Caps Lock and press a key. Each site is also a link, capsjump://<name>, that lands
-    # on its tab in the right Chrome account; each key does one thing: an app, a site, a
+    # on its tab in the right browser and account; each key does one thing: an app, a site, a
     # window position (left-half, right-half, top-half, bottom-half, maximize) or a link.
     # `capsjump check` explains every line. CapsJump rewrites this file when it saves, so
     # comments added here don't survive that.
@@ -50,6 +50,7 @@ public enum ConfigWriter {
 
     private static func node(_ site: Site) -> Node {
         var pairs: [(Node, Node)] = [(scalar("name"), value(site.name))]
+        if let browser = site.browser?.name { pairs.append((scalar("browser"), value(browser))) }
         if let account = site.account { pairs.append((scalar("account"), value(account))) }
         if let profile = site.profile { pairs.append((scalar("profile"), value(profile))) }
         pairs.append((scalar("open"), value(site.open.absoluteString)))

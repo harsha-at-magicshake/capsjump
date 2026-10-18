@@ -163,7 +163,7 @@ struct AddTabView: View {
                         } else {
                             TextField("Account", text: $model.account, prompt: Text("you@work.com"))
                         }
-                        EditorNotes(note: model.landing.map { "Lands in \($0)" }, problems: model.problems(.account, .profile, .accountOrProfile))
+                        EditorNotes(note: model.landing.map { "Lands in \($0)" }, problems: model.problems(.browser, .account, .profile))
                     }
                     FieldRow(label: "Page", text: $model.page, prompt: "https://", problems: model.problems(.open, .match))
                     keyField

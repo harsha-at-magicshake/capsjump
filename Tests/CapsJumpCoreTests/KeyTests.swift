@@ -180,6 +180,7 @@ import Testing
             try ConfigParser.parse("""
             sites:
               - name: github
+                browser: opera
                 open: https://github.com/
             keys:
               g: { site: github }

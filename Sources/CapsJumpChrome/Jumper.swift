@@ -67,7 +67,7 @@ public enum Inputs {
         }
     }
 
-    public static func profiles(at url: URL = Paths.chromeLocalState()) throws(JumpError) -> ProfileCatalog {
+    public static func profiles(at url: URL = Browser.chrome.localState()!) throws(JumpError) -> ProfileCatalog {
         guard let data = FileManager.default.contents(atPath: url.path) else {
             throw .profiles("Chrome's profile list is missing at \(url.path); has Chrome been opened on this Mac?")
         }

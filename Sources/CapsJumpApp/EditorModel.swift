@@ -612,7 +612,7 @@ final class EditorModel: ObservableObject {
             defaultMatch: defaultMatch(id),
             matchIsDefault: draft.matchIsDefault(id),
             nameProblems: problems(site: id, .entry, .unknownKey, .name),
-            accountProblems: problems(site: id, .account, .profile, .accountOrProfile),
+            accountProblems: problems(site: id, .browser, .account, .profile),
             pageProblems: problems(site: id, .open),
             matchProblems: problems(site: id, .match)
         )

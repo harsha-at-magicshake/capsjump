@@ -202,4 +202,11 @@ import Testing
         #expect(site.account == "alex@acme.dev")
         #expect(site.profile == "Profile 9")
     }
+
+    @Test func browserIsWrittenLowerCaseAfterTheName() throws {
+        let config = try ConfigParser.parse("sites:\n  - name: g\n    open: https://github.com\n    browser: Brave\n")
+        let text = ConfigWriter.render(config)
+        #expect(text.contains("- name: g\n  browser: brave\n  open: https://github.com\n"))
+        #expect(try ConfigParser.parse(text) == config)
+    }
 }

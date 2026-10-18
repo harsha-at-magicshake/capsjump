@@ -1,7 +1,7 @@
 // Every rule a config must meet beyond being readable YAML, applied to a `ConfigSource`:
 // each field's (site names, the open URL, `match` and its default, key names, apps, window
-// positions, links) and those across entries (an account or profile, a site name used
-// twice, a key bound twice, a key naming no site). The file and the editing window both
+// positions, links, the browser and whether it has profiles) and those across entries (a
+// site name used twice, a key bound twice, a key naming no site). The file and the editing window both
 // come here, so they refuse the same things with the same words. A problem holds its place
 // and its bare message; `description` adds the place the way `capsjump check` prints it.
 
@@ -115,10 +115,18 @@ public enum ConfigRules {
             problem(.name, "`name` is missing")
         }
 
+        var browser: Browser?
+        if let raw = text(entry.browser, "browser", { problem(.browser, $0) }) {
+            browser = Browser.named(raw)
+            if browser == nil {
+                let known = Browser.known.compactMap(\.name).map { "`\($0)`" }.joined(separator: ", ")
+                problem(.browser, "`browser` must be one of \(known), not `\(raw)`")
+            }
+        }
         let account = text(entry.account, "account") { problem(.account, $0) }
         let profile = text(entry.profile, "profile") { problem(.profile, $0) }
-        if account == nil && profile == nil {
-            problem(.accountOrProfile, "give `account` (an email, or the profile's name) or `profile` (a folder such as `Profile 26`)")
+        if let browser, browser.support == .plain, account != nil || profile != nil {
+            problem(.browser, "\(browser) has no profiles CapsJump can read; remove `account` and `profile`, or pick a browser that has them")
         }
 
         var open: URL?
@@ -150,7 +158,7 @@ public enum ConfigRules {
         }
 
         guard problems.isEmpty, let name = entry.name, let open else { return (nil, problems) }
-        return (Site(name: name, account: account, profile: profile, open: open, match: match), [])
+        return (Site(name: name, account: account, profile: profile, open: open, match: match, browser: browser), [])
     }
 
     /// One key, or the problems with it; a key bound twice is `validate`'s.

@@ -18,8 +18,13 @@ import Testing
             "Give the page it opens.",
         ])
         #expect(wording([SiteSource(index: 0, name: "a", open: "ftp://x")]) == [
-            "Pick the account this site opens in.",
             "The page must start with http:// or https://, not “ftp://x”.",
+        ])
+        #expect(wording([SiteSource(index: 0, name: "a", open: "https://x.com", browser: "opera")]) == [
+            "Pick a browser CapsJump knows, not “opera”.",
+        ])
+        #expect(wording([SiteSource(index: 0, name: "a", account: "a", open: "https://x.com", browser: "safari")]) == [
+            "Safari has no accounts CapsJump can read; pick None, or another browser.",
         ])
         #expect(wording([SiteSource(index: 0, name: "a", account: "a", open: "https://x.com", match: ["https://x.com/a"])]) == [
             "Leave out the scheme: write “x.com/a”, not “https://x.com/a”.",

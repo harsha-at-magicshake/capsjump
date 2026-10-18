@@ -54,13 +54,11 @@ import Testing
         draft.renameSite(github, to: "")
         #expect(draft.issues.map(\.message) == [
             "`name` is missing",
-            "give `account` (an email, or the profile's name) or `profile` (a folder such as `Profile 26`)",
             "`site` must be a non-empty text",
             "`site` must be a non-empty text",
         ])
         #expect(draft.issues.map(\.spot) == [
             .site(id: github, field: .name),
-            .site(id: github, field: .accountOrProfile),
             .key(id: draft.keys[0].id, field: .action),
             .key(id: draft.keys[1].id, field: .action),
         ])

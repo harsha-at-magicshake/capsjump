@@ -11,20 +11,20 @@ import CapsJumpCore
 public final class ChromeScripting {
     private static let source = """
     on windowlist()
-    	tell application id "\(Identity.chromeBundleID)"
+    	tell application id "\(Browser.chrome.bundleID)"
     		return {id of every window, name of every window}
     	end tell
     end windowlist
 
     on tablist(wid)
-    	tell application id "\(Identity.chromeBundleID)"
+    	tell application id "\(Browser.chrome.bundleID)"
     		set w to window id wid
     		return {URL of every tab of w, active tab index of w}
     	end tell
     end tablist
 
     on focustab(wid, tabIdx)
-    	tell application id "\(Identity.chromeBundleID)"
+    	tell application id "\(Browser.chrome.bundleID)"
     		set w to window id wid
     		if minimized of w then set minimized of w to false
     		set active tab index of w to tabIdx

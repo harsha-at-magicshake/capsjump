@@ -14,10 +14,9 @@ public struct SiteSource: Sendable, Equatable {
         case entry
         case unknownKey
         case name
+        case browser
         case account
         case profile
-        /// The rule that one of `account` and `profile` is given.
-        case accountOrProfile
         case open
         case match
     }
@@ -26,13 +25,15 @@ public struct SiteSource: Sendable, Equatable {
     public var index: Int
     public var line: Int?
     public var name: String?
+    /// As written; nil for the Mac's default browser.
+    public var browser: String?
     public var account: String?
     public var profile: String?
     public var open: String?
     /// The prefixes as written, or nil when the file gives none, so the default follows `open`.
     public var match: [String]?
 
-    public init(index: Int, line: Int? = nil, name: String?, account: String? = nil, profile: String? = nil, open: String?, match: [String]? = nil) {
+    public init(index: Int, line: Int? = nil, name: String?, account: String? = nil, profile: String? = nil, open: String?, match: [String]? = nil, browser: String? = nil) {
         self.index = index
         self.line = line
         self.name = name
@@ -40,6 +41,7 @@ public struct SiteSource: Sendable, Equatable {
         self.profile = profile
         self.open = open
         self.match = match
+        self.browser = browser
     }
 }
 
@@ -100,7 +102,7 @@ public struct ConfigSource: Sendable, Equatable {
 
 public enum ConfigReader {
     static let topLevelKeys: Set<String> = ["sites", "keys"]
-    static let siteKeys: Set<String> = ["name", "account", "profile", "open", "match"]
+    static let siteKeys: Set<String> = ["name", "browser", "account", "profile", "open", "match"]
     static let actionKeys: Set<String> = Set(ActionSource.Kind.allCases.map(\.rawValue))
 
     public static func read(_ yaml: String) -> ConfigSource {
@@ -149,7 +151,7 @@ public enum ConfigReader {
     private static func readSite(_ node: Node, index: Int, into source: inout ConfigSource) {
         let line = line(of: node)
         guard let mapping = node.mapping else {
-            source.problems.append(Problem(.site(index: index, name: nil, field: .entry), line: line, "must be a mapping with name, account and open"))
+            source.problems.append(Problem(.site(index: index, name: nil, field: .entry), line: line, "must be a mapping with name and open"))
             return
         }
         let name = mapping["name"]?.string
@@ -167,7 +169,7 @@ public enum ConfigReader {
             }
             return value
         }
-        var site = SiteSource(index: index, line: line, name: name, account: text("account", .account), profile: text("profile", .profile), open: text("open", .open))
+        var site = SiteSource(index: index, line: line, name: name, account: text("account", .account), profile: text("profile", .profile), open: text("open", .open), browser: text("browser", .browser))
         if let matchNode = mapping["match"] {
             if let items = matchNode.sequence {
                 site.match = items.compactMap { item in

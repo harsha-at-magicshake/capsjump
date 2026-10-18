@@ -36,13 +36,13 @@ import Testing
         var draft = ConfigDraft(ConfigReader.read(Self.file))
         let github = draft.sites[0].id
         let prs = draft.sites[1].id
-        draft.updateSite(github) { $0.account = "" }
+        draft.updateSite(github) { $0.browser = "opera" }
         draft.renameSite(prs, to: "")
         draft.setAction(draft.keys[3].id, ActionSource(.window, "sideways"))
         let check = draft.checked()
         #expect(check.issues == draft.issues)
         #expect(check.config == nil)
-        #expect(check.site(github).map(\.message) == ["give `account` (an email, or the profile's name) or `profile` (a folder such as `Profile 26`)"])
+        #expect(check.site(github).map(\.message) == ["`browser` must be one of `chrome`, `brave`, `edge`, `vivaldi`, `chromium`, `arc`, `safari`, `firefox`, not `opera`"])
         #expect(check.site(github, [.name, .open]).isEmpty)
         #expect(check.site(prs, [.name]).map(\.message) == ["`name` is missing"])
         #expect(check.key(draft.keys[2].id).map(\.message) == ["`site` must be a non-empty text"])

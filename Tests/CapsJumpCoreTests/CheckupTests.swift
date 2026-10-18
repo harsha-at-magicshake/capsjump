@@ -63,7 +63,7 @@ import Testing
     }
 
     @Test func configProblemsAreListedWithThePath() {
-        let findings = run("sites:\n  - name: x\n")
+        let findings = run("sites:\n  - name: X\n")
         #expect(findings.allSatisfy { $0.level == .problem && $0.text.hasPrefix("~/.capsjump.yaml: ") })
         #expect(findings.count == 2)
     }

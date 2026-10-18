@@ -1,6 +1,6 @@
 // The config file, ~/.capsjump.yaml. `sites:` holds one entry per site, naming the link
-// (capsjump://<name>), the Chrome account it lives in, the page to open and the URL
-// prefixes that count as already open. `keys:` binds Caps Lock + a key to one action.
+// (capsjump://<name>), the browser and account it lives in (both optional), the page to
+// open and the URL prefixes that count as already open. `keys:` binds Caps Lock + a key to one action.
 // Parsing reads the YAML tree itself (`ConfigReader`) rather than decoding with Codable,
 // because Codable ignores unknown keys and a typo such as `acount:` must be refused, not
 // dropped; then `ConfigRules` applies every other rule. Every problem in the file is
@@ -19,13 +19,16 @@ public struct Site: Sendable, Equatable {
     public let open: URL
     /// Scheme-less URL prefixes, most specific first, that count as the site being open.
     public let match: [String]
+    /// The browser it always opens in; nil for the Mac's default browser.
+    public let browser: Browser?
 
-    public init(name: String, account: String?, profile: String?, open: URL, match: [String]) {
+    public init(name: String, account: String?, profile: String?, open: URL, match: [String], browser: Browser? = nil) {
         self.name = name
         self.account = account
         self.profile = profile
         self.open = open
         self.match = match
+        self.browser = browser
     }
 }
 

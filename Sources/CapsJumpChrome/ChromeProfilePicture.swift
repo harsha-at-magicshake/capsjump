@@ -29,7 +29,7 @@ public enum ChromeProfilePicture {
 
     /// The picture file of a Chrome profile folder such as `Profile 1`.
     public static func file(profile: String, name: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
-        Paths.chromeData(home: home).appendingPathComponent(profile).appendingPathComponent(name)
+        Browser.chrome.data(home: home)!.appendingPathComponent(profile).appendingPathComponent(name)
     }
 
     /// The picture as a PNG of at most `largest` pixels a side.

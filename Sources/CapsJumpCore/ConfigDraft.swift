@@ -63,6 +63,7 @@ public struct ConfigDraft: Sendable, Equatable {
                 site.line = nil
                 // A field cleared in the window is a field not given.
                 site.name = Self.given(site.name)
+                site.browser = Self.given(site.browser)
                 site.account = Self.given(site.account)
                 site.profile = Self.given(site.profile)
                 site.open = Self.given(site.open)

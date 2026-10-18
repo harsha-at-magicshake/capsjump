@@ -32,7 +32,6 @@ import Testing
         #expect(problems.map(\.place) == [
             .site(index: 0, name: "GitHub", field: .unknownKey),
             .site(index: 0, name: "GitHub", field: .name),
-            .site(index: 0, name: "GitHub", field: .accountOrProfile),
             .site(index: 0, name: "GitHub", field: .open),
             .site(index: 1, name: "ok", field: .match),
             .site(index: 2, name: nil, field: .entry),
@@ -40,10 +39,10 @@ import Testing
             .key(index: 1, name: "a", field: .action),
             .key(index: 2, name: "j", field: .entry),
         ])
-        #expect(problems.map(\.line) == [2, 2, 2, 2, 5, 9, 11, 12, 13])
+        #expect(problems.map(\.line) == [2, 2, 2, 5, 9, 11, 12, 13])
         #expect(problems[1].message == "name `GitHub` may use only lower-case letters, digits and inner hyphens")
-        #expect(problems[5].description == "line 9: sites[2] must be a mapping with name, account and open")
-        #expect(problems[8].description == "line 13: keys.j must be a mapping with one of app, site, window or url, such as `{ app: Safari }`")
+        #expect(problems[4].description == "line 9: sites[2] must be a mapping with name and open")
+        #expect(problems[7].description == "line 13: keys.j must be a mapping with one of app, site, window or url, such as `{ app: Safari }`")
     }
 
     @Test func readingAndTheRulesReportTogetherInFileOrder() {
@@ -60,7 +59,6 @@ import Testing
             "the file: unknown key `extra` (known keys: `keys`, `sites`)",
             "line 2: sites[0] (Bad): name `Bad` may use only lower-case letters, digits and inner hyphens",
             "line 2: sites[0] (Bad): `account` must be a non-empty text",
-            "line 2: sites[0] (Bad): give `account` (an email, or the profile's name) or `profile` (a folder such as `Profile 26`)",
             "line 6: keys.G: unknown key name `G` (key names: a–z, 0–9, f1–f12, left, right, up, down)",
             "line 6: keys.G: unknown key `colour` (known keys: `app`, `site`, `url`, `window`)",
         ])
@@ -118,10 +116,51 @@ import Testing
         }
         #expect(error.problems == [
             "sites[0] (a): `account` must be a non-empty text",
-            "sites[0] (a): give `account` (an email, or the profile's name) or `profile` (a folder such as `Profile 26`)",
             "sites[0] (a): `open` must be a non-empty text",
             "keys.g: give one of `app`, `site`, `window` or `url`",
             "keys.h: `app` must be a non-empty text",
+        ])
+    }
+
+    @Test func aSiteNeedsNoAccount() throws {
+        let config = try ConfigParser.parse("sites:\n  - name: g\n    open: https://github.com\n")
+        #expect(config.sites[0].account == nil)
+        #expect(config.sites[0].profile == nil)
+        #expect(config.sites[0].browser == nil)
+    }
+
+    @Test func browserIsNamedInAnyCase() throws {
+        let config = try ConfigParser.parse("sites:\n  - name: g\n    browser: Brave\n    open: https://github.com\n")
+        #expect(config.sites[0].browser == .brave)
+    }
+
+    @Test func browserProblems() {
+        let problems = found("""
+        sites:
+          - name: a
+            browser: opera
+            open: https://x.com
+          - name: b
+            browser: ''
+            open: https://x.com
+          - name: c
+            browser: safari
+            account: a@b.c
+            open: https://x.com
+          - name: d
+            browsr: brave
+            open: https://x.com
+        """)
+        #expect(problems.map(\.message) == [
+            "`browser` must be one of `chrome`, `brave`, `edge`, `vivaldi`, `chromium`, `arc`, `safari`, `firefox`, not `opera`",
+            "`browser` must be a non-empty text",
+            "Safari has no profiles CapsJump can read; remove `account` and `profile`, or pick a browser that has them",
+            "unknown key `browsr` (known keys: `account`, `browser`, `match`, `name`, `open`, `profile`)",
+        ])
+        #expect(problems.map(\.place)[0...2] == [
+            .site(index: 0, name: "a", field: .browser),
+            .site(index: 1, name: "b", field: .browser),
+            .site(index: 2, name: "c", field: .browser),
         ])
     }
 }

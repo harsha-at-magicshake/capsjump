@@ -9,7 +9,7 @@ import CapsJumpCore
 @MainActor
 public enum ChromeLauncher {
     public static var runningChrome: NSRunningApplication? {
-        NSRunningApplication.runningApplications(withBundleIdentifier: Identity.chromeBundleID).first { !$0.isTerminated }
+        NSRunningApplication.runningApplications(withBundleIdentifier: Browser.chrome.bundleID).first { !$0.isTerminated }
     }
 
     public static func open(_ url: URL, profileDirectory: String) async throws(ChromeError) {
@@ -30,7 +30,7 @@ public enum ChromeLauncher {
     }
 
     private static func launch(arguments: [String], activates: Bool, newInstance: Bool) async throws(ChromeError) {
-        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Identity.chromeBundleID) else {
+        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Browser.chrome.bundleID) else {
             throw .notInstalled
         }
         let configuration = NSWorkspace.OpenConfiguration()

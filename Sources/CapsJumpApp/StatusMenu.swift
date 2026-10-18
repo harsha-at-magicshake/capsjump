@@ -111,7 +111,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func checkConfig() {
         let configPath = Paths.config()
-        let statePath = Paths.chromeLocalState()
+        let statePath = Browser.chrome.localState()!
         let findings = Checkup.run(
             configText: try? String(contentsOf: configPath, encoding: .utf8),
             configPath: configPath.path,

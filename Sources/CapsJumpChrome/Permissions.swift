@@ -27,7 +27,7 @@ public enum Permissions {
     /// runs off the main thread.
     public static func automation(ask: Bool) async -> PermissionState {
         await Task.detached {
-            let target = NSAppleEventDescriptor(bundleIdentifier: Identity.chromeBundleID)
+            let target = NSAppleEventDescriptor(bundleIdentifier: Browser.chrome.bundleID)
             let status = AEDeterminePermissionToAutomateTarget(target.aeDesc, typeWildCard, typeWildCard, ask)
             switch status {
             case noErr: return PermissionState.granted
