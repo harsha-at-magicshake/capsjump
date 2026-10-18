@@ -1,7 +1,10 @@
-// Asks for all three permissions at once, attributed to CapsJump itself, registers the
-// app to start at login so the keys are there from the moment the Mac starts, then shows
-// one alert with each one's state. Automation can be asked for only while Chrome runs, so
-// setup starts Chrome first when it is closed.
+// Asks for all the permissions at once, attributed to CapsJump itself, registers the app to
+// start at login so the keys are there from the moment the Mac starts, then shows one
+// alert with each one's state. Automation is granted per browser, and can be asked for
+// only while that browser runs: setup starts the default browser when it is one CapsJump
+// scripts, and asks for each other browser the config may use only if it is already
+// running; the rest are asked for on their first jump. When macOS refuses to let CapsJump
+// read a browser's profile list, the alert says so and offers the setting that allows it.
 
 import AppKit
 import CapsJumpChrome
@@ -10,27 +13,59 @@ import ServiceManagement
 
 @MainActor
 enum Setup {
-    /// True when a permission is known to be missing. Automation reads as unknown while
-    /// Chrome is closed and does not count.
+    /// True when a permission is known to be missing: Accessibility, Automation of the
+    /// default browser (unknown while it is closed, which does not count), reading its
+    /// profile list, or notifications.
     static func somethingMissing(notifier: Notifier) async -> Bool {
         if Permissions.accessibility(prompt: false) != .granted { return true }
-        if [.denied, .notAsked].contains(await Permissions.automation(of: .chrome, ask: false)) { return true }
+        let browser = Browsers.defaultBrowser()
+        if browser.support == .full {
+            if [.denied, .notAsked].contains(await Permissions.automation(of: browser, ask: false)) { return true }
+            if case .refused = Inputs.catalog(for: browser) { return true }
+        }
         return await notifier.state == .notAsked
+    }
+
+    /// One browser's line: its Automation state, or why it wasn't asked.
+    private struct Automation {
+        let browser: Browser
+        var state: PermissionState = .unknown
+        var problem: String?
+        /// Not running, so asked for on its first jump instead.
+        var deferred = false
+        var refused = false
+
+        var line: String {
+            "Automation of \(browser): \(problem ?? state.rawValue)"
+        }
     }
 
     static func run(notifier: Notifier) async {
         let accessibility = Permissions.accessibility(prompt: true)
-        var automation = PermissionState.unknown
-        var chromeProblem: String?
-        do {
-            _ = try await ChromeLauncher.start(.chrome)
-            automation = await Permissions.automation(of: .chrome, ask: true)
-        } catch {
-            chromeProblem = error.description
+        let defaultBrowser = Browsers.defaultBrowser()
+        let config = try? Inputs.config()
+        var automations: [Automation] = []
+        for browser in Placement.browsersUsed(by: config ?? Config(sites: []), defaultBrowser: defaultBrowser) {
+            var automation = Automation(browser: browser)
+            if browser == defaultBrowser {
+                do {
+                    _ = try await ChromeLauncher.start(browser)
+                    automation.state = await Permissions.automation(of: browser, ask: true)
+                } catch {
+                    automation.problem = error.description
+                }
+            } else if ChromeLauncher.running(browser) != nil {
+                automation.state = await Permissions.automation(of: browser, ask: true)
+            } else {
+                automation.problem = "asked on the first jump, since it isn't running"
+                automation.deferred = true
+            }
+            if case .refused = Inputs.catalog(for: browser) { automation.refused = true }
+            automations.append(automation)
         }
         let notifications = await notifier.request()
         let login = startAtLogin()
-        show(accessibility: accessibility, automation: automation, chromeProblem: chromeProblem, notifications: notifications, login: login)
+        show(accessibility: accessibility, automations: automations, notifications: notifications, login: login)
     }
 
     /// Registers the app as a login item; turned off again from the menu bar, or in System
@@ -42,25 +77,32 @@ enum Setup {
 
     private static func show(
         accessibility: PermissionState,
-        automation: PermissionState,
-        chromeProblem: String?,
+        automations: [Automation],
         notifications: PermissionState,
         login: SMAppService.Status
     ) {
         let alert = NSAlert()
-        let ready = accessibility == .granted && automation == .granted
+        let denied = automations.filter { $0.state == .denied }
+        let refused = automations.filter(\.refused)
+        let ready = accessibility == .granted && denied.isEmpty && refused.isEmpty
+            && automations.allSatisfy { $0.state == .granted || $0.deferred }
         alert.messageText = ready ? "CapsJump is ready" : "CapsJump needs a permission"
-        var lines = [
-            "Accessibility: \(accessibility.rawValue)",
-            "Automation of Chrome: \(chromeProblem ?? automation.rawValue)",
+        var lines = ["Accessibility: \(accessibility.rawValue)"]
+        lines += automations.map(\.line)
+        lines += refused.map { "Reading \($0.browser)'s profiles: refused by macOS" }
+        lines += [
             "Notifications: \(notifications.rawValue)",
             "Starts at login: \(login == .enabled ? "yes" : login == .requiresApproval ? "waiting for approval" : "no")",
         ]
         if accessibility != .granted {
             lines.append("\nTurn CapsJump on under Privacy & Security › Accessibility.")
         }
-        if automation == .denied {
-            lines.append("\nTurn on Google Chrome under CapsJump in Privacy & Security › Automation.")
+        if !denied.isEmpty {
+            let names = denied.map(\.browser.displayName).joined(separator: " and ")
+            lines.append("\nTurn on \(names) under CapsJump in Privacy & Security › Automation.")
+        }
+        if !refused.isEmpty {
+            lines.append("\nTurn CapsJump on under Privacy & Security › Full Disk Access, so it can read which profiles your browsers have.")
         }
         if login == .requiresApproval {
             lines.append("\nTurn CapsJump on under General › Login Items & Extensions.")
@@ -75,9 +117,13 @@ enum Setup {
             alert.addButton(withTitle: "Open Accessibility Settings")
             settings.append("Privacy_Accessibility")
         }
-        if automation == .denied {
+        if !denied.isEmpty {
             alert.addButton(withTitle: "Open Automation Settings")
             settings.append("Privacy_Automation")
+        }
+        if !refused.isEmpty {
+            alert.addButton(withTitle: "Open Full Disk Access Settings")
+            settings.append("Privacy_AllFiles")
         }
         alert.addButton(withTitle: "Done")
 
