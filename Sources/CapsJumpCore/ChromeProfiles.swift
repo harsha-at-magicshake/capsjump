@@ -156,7 +156,7 @@ public struct ProfileCatalog: Sendable, Equatable {
         public var description: String {
             switch self {
             case let .notFound(account, known):
-                "no Chrome profile has the account `\(account)`; this Mac has: \(known.joined(separator: ", "))"
+                "no profile has the account `\(account)`; this Mac has: \(known.joined(separator: ", "))"
             case let .ambiguous(account, directories):
                 "`\(account)` matches the profiles \(directories.map { "`\($0)`" }.joined(separator: " and ")); name one with `profile:`"
             }

@@ -1,5 +1,5 @@
-// From a site in the config to the Chrome profile it lives in and the label that profile's
-// window titles end with.
+// From a site in the config to the profile it lives in, in one browser's profile list, and
+// the label that profile's window titles end with. Which browser is `Placement`'s choice.
 
 import Foundation
 
@@ -24,7 +24,7 @@ public enum ResolveError: Error, Equatable, CustomStringConvertible {
         case let .account(error):
             error.description
         case let .unknownProfile(directory, known):
-            "no Chrome profile folder `\(directory)`; this Mac has: \(known.joined(separator: ", "))"
+            "no profile folder `\(directory)`; this Mac has: \(known.joined(separator: ", "))"
         case let .accountMismatch(account, directory):
             "`\(directory)` is not the account `\(account)`; fix one of them"
         }
@@ -35,23 +35,25 @@ public enum Resolver {
     /// `profile:` wins when given, and must then agree with `account:` if that is given too;
     /// otherwise the account picks the profile.
     public static func resolve(_ site: Site, in catalog: ProfileCatalog) throws(ResolveError) -> Target {
-        let profile: ChromeProfile
-        if let directory = site.profile {
+        let profile = try profile(account: site.account, directory: site.profile, in: catalog)
+        return Target(site: site, profile: profile, sharedLabelWith: catalog.sharingLabel(with: profile))
+    }
+
+    /// The profile an account and a folder name, by `resolve`'s rule.
+    public static func profile(account: String?, directory: String?, in catalog: ProfileCatalog) throws(ResolveError) -> ChromeProfile {
+        if let directory {
             guard let found = catalog.profile(directory: directory) else {
                 throw .unknownProfile(directory: directory, known: catalog.profiles.map(\.directory))
             }
-            if let account = site.account?.lowercased(),
-               found.email.lowercased() != account, found.name.lowercased() != account {
-                throw .accountMismatch(account: site.account ?? "", directory: directory)
+            if let account, found.email.lowercased() != account.lowercased(), found.name.lowercased() != account.lowercased() {
+                throw .accountMismatch(account: account, directory: directory)
             }
-            profile = found
-        } else {
-            do {
-                profile = try catalog.profile(account: site.account ?? "")
-            } catch {
-                throw .account(error)
-            }
+            return found
         }
-        return Target(site: site, profile: profile, sharedLabelWith: catalog.sharingLabel(with: profile))
+        do {
+            return try catalog.profile(account: account ?? "")
+        } catch {
+            throw .account(error)
+        }
     }
 }

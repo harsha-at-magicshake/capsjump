@@ -24,8 +24,8 @@ func catalog() throws -> ProfileCatalog {
     try ProfileCatalog.parse(localState: Data(localState.utf8))
 }
 
-func site(_ name: String = "s", account: String? = nil, profile: String? = nil, open: String = "https://x.com/", match: [String] = ["x.com/"]) -> Site {
-    Site(name: name, account: account, profile: profile, open: URL(string: open)!, match: match)
+func site(_ name: String = "s", account: String? = nil, profile: String? = nil, open: String = "https://x.com/", match: [String] = ["x.com/"], browser: Browser? = nil) -> Site {
+    Site(name: name, account: account, profile: profile, open: URL(string: open)!, match: match, browser: browser)
 }
 
 @Suite struct ProfileTests {
