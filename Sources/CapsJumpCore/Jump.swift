@@ -1,6 +1,8 @@
-// What one jump does, decided from what Chrome and Accessibility report: focus a tab that
-// already shows the site, or open the site in its profile. The live side gathers the
-// facts and carries out the decision; every rule is here.
+// What one jump does, decided from what the site's browser and Accessibility report:
+// focus a tab that already shows the site, or open the site, in its profile when it names
+// one. Only windows paired with an Accessibility title are searched, so a window with no
+// name, as a browser's web-app windows are listed, is never focused. The live side
+// gathers the facts and carries out the decision; every rule is here.
 
 import Foundation
 
@@ -22,14 +24,16 @@ public enum Action: Sendable, Equatable {
     /// Activate tab `tabIndex` (from 1) of Chrome window `windowID`, whose Accessibility
     /// title is `titles[titleIndex]`.
     case focus(windowID: String, tabIndex: Int, titleIndex: Int)
-    /// Open `url` in the profile folder `profileDirectory`.
-    case open(profileDirectory: String, url: URL, reason: OpenReason)
+    /// Open `url`, in the profile folder `profileDirectory` when given, else wherever
+    /// the browser opens a link.
+    case open(profileDirectory: String?, url: URL, reason: OpenReason)
 }
 
 public enum OpenReason: String, Sendable, Equatable {
-    case chromeNotRunning = "Chrome is not running"
+    case notRunning = "the browser is not running"
     case sharedLabel = "another profile's windows carry the same label"
     case noMatchingTab = "no open tab matches"
+    case plain = "CapsJump can't read this browser's tabs"
 }
 
 public enum Jump {
@@ -50,29 +54,30 @@ public enum Jump {
         return nil
     }
 
-    /// Decides the jump. `tabs` reads one window's tabs and is called only for the target
-    /// profile's paired windows; an error from it (a refused permission) is thrown, never
-    /// turned into opening a duplicate tab.
+    /// Decides the jump. `tabs` reads one window's tabs and is called only for the paired
+    /// windows that can be the destination's; an error from it (a refused permission) is
+    /// thrown, never turned into opening a duplicate tab.
     public static func decide<E: Error>(
-        target: Target,
-        chromeRunning: Bool,
+        destination: Destination,
+        running: Bool,
         windows: [ChromeWindow],
         titles: [String],
         tabs: (String) throws(E) -> WindowTabs
     ) throws(E) -> Action {
         let open = { (reason: OpenReason) in
-            Action.open(profileDirectory: target.profile.directory, url: target.site.open, reason: reason)
+            Action.open(profileDirectory: destination.target?.profile.directory, url: destination.site.open, reason: reason)
         }
-        guard chromeRunning else { return open(.chromeNotRunning) }
-        guard target.canFocus else { return open(.sharedLabel) }
+        guard destination.browser.support == .full else { return open(.plain) }
+        guard running else { return open(.notRunning) }
+        guard destination.target?.canFocus ?? true else { return open(.sharedLabel) }
 
         let pairing = WindowPairing.pair(chrome: windows, titles: titles)
-        let ours = WindowPairing.windows(labelled: target.label, chrome: windows, titles: titles, pairing: pairing)
+        let ours = WindowPairing.windows(labelled: destination.windowLabel, chrome: windows, titles: titles, pairing: pairing)
         var read: [WindowTabs] = []
         for (window, _) in ours {
             read.append(try tabs(window.id))
         }
-        guard let choice = chooseTab(prefixes: target.site.match, windows: read),
+        guard let choice = chooseTab(prefixes: destination.site.match, windows: read),
               let title = ours.first(where: { $0.window.id == choice.windowID })?.title
         else { return open(.noMatchingTab) }
         return .focus(windowID: choice.windowID, tabIndex: choice.tabIndex, titleIndex: title)

@@ -84,11 +84,12 @@ public enum WindowPairing {
         return result
     }
 
-    /// The profile's paired windows, front to back, each with its title's index.
-    public static func windows(labelled label: String, chrome: [ChromeWindow], titles: [String], pairing: [String: Int]) -> [(window: ChromeWindow, title: Int)] {
-        let suffix = labelSuffix(label)
+    /// The profile's paired windows, front to back, each with its title's index; every
+    /// paired window when `label` is nil.
+    public static func windows(labelled label: String?, chrome: [ChromeWindow], titles: [String], pairing: [String: Int]) -> [(window: ChromeWindow, title: Int)] {
+        let suffix = label.map(labelSuffix)
         return chrome.compactMap { window in
-            guard let t = pairing[window.id], titles[t].hasSuffix(suffix) else { return nil }
+            guard let t = pairing[window.id], suffix.map(titles[t].hasSuffix) ?? true else { return nil }
             return (window, t)
         }
     }

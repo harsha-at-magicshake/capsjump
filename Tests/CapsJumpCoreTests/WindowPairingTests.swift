@@ -113,13 +113,25 @@ private let lee = "lee@initech.com"
 
 @Suite struct JumpTests {
     private let profile = ChromeProfile(directory: "Profile 26", name: kim, email: "", givenName: "")
+    private let url = URL(string: "https://claude.ai/new")!
 
-    private func target(match: [String] = ["claude.ai/"], shared: Bool = false) -> Target {
-        Target(
-            site: Site(name: "claude-kim", account: kim, profile: nil, open: URL(string: "https://claude.ai/new")!, match: match),
+    private func site(match: [String] = ["claude.ai/"]) -> Site {
+        Site(name: "claude-kim", account: kim, profile: nil, open: url, match: match)
+    }
+
+    /// In kim's profile of Chrome, as the site names it.
+    private func destination(match: [String] = ["claude.ai/"], shared: Bool = false, label: String? = kim) -> Destination {
+        let target = Target(
+            site: site(match: match),
             profile: profile,
             sharedLabelWith: shared ? [ChromeProfile(directory: "Profile 27", name: kim, email: "", givenName: "")] : []
         )
+        return Destination(site: target.site, browser: .chrome, target: target, fellBack: false, isDefault: true, windowLabel: label)
+    }
+
+    /// No account: any window of the browser, and its own choice of profile.
+    private func anyProfile(_ browser: Browser = .brave, match: [String] = ["claude.ai/"]) -> Destination {
+        Destination(site: site(match: match), browser: browser, target: nil, fellBack: false, isDefault: true, windowLabel: nil)
     }
 
     private let chrome = [
@@ -157,7 +169,7 @@ private let lee = "lee@initech.com"
 
     @Test func focusesOnlyTheProfilesWindows() throws {
         // Window 2 shows Claude but belongs to lee; it is never read.
-        let action = try Jump.decide(target: target(), chromeRunning: true, windows: chrome, titles: titles, tabs: tabs([
+        let action = try Jump.decide(destination: destination(), running: true, windows: chrome, titles: titles, tabs: tabs([
             "1": WindowTabs(windowID: "1", urls: ["https://github.com"], activeIndex: 1),
             "3": WindowTabs(windowID: "3", urls: ["https://docs.x", "https://claude.ai/chat/1"], activeIndex: 1),
         ]))
@@ -165,26 +177,65 @@ private let lee = "lee@initech.com"
     }
 
     @Test func opensWhenNothingMatches() throws {
-        let action = try Jump.decide(target: target(match: ["mail.google.com/"]), chromeRunning: true, windows: chrome, titles: titles, tabs: tabs([
+        let action = try Jump.decide(destination: destination(match: ["mail.google.com/"]), running: true, windows: chrome, titles: titles, tabs: tabs([
             "1": WindowTabs(windowID: "1", urls: ["https://github.com"], activeIndex: 1),
             "3": WindowTabs(windowID: "3", urls: ["https://docs.x"], activeIndex: 1),
         ]))
-        #expect(action == .open(profileDirectory: "Profile 26", url: URL(string: "https://claude.ai/new")!, reason: .noMatchingTab))
+        #expect(action == .open(profileDirectory: "Profile 26", url: url, reason: .noMatchingTab))
     }
 
-    @Test func opensWithoutReadingWhenChromeIsClosedOrLabelShared() throws {
+    @Test func opensWithoutReadingWhenClosedOrLabelShared() throws {
         let none = tabs([:])
-        #expect(try Jump.decide(target: target(), chromeRunning: false, windows: chrome, titles: titles, tabs: none)
-            == .open(profileDirectory: "Profile 26", url: URL(string: "https://claude.ai/new")!, reason: .chromeNotRunning))
-        #expect(try Jump.decide(target: target(shared: true), chromeRunning: true, windows: chrome, titles: titles, tabs: none)
-            == .open(profileDirectory: "Profile 26", url: URL(string: "https://claude.ai/new")!, reason: .sharedLabel))
+        #expect(try Jump.decide(destination: destination(), running: false, windows: chrome, titles: titles, tabs: none)
+            == .open(profileDirectory: "Profile 26", url: url, reason: .notRunning))
+        #expect(try Jump.decide(destination: destination(shared: true), running: true, windows: chrome, titles: titles, tabs: none)
+            == .open(profileDirectory: "Profile 26", url: url, reason: .sharedLabel))
     }
 
     @Test func readErrorIsThrownNeverOpened() {
         #expect(throws: TabsError.denied) {
-            try Jump.decide(target: target(), chromeRunning: true, windows: chrome, titles: titles) { (_: String) throws(TabsError) -> WindowTabs in
+            try Jump.decide(destination: destination(), running: true, windows: chrome, titles: titles) { (_: String) throws(TabsError) -> WindowTabs in
                 throw TabsError.denied
             }
         }
+    }
+
+    private let everyWindow: [String: WindowTabs] = [
+        "1": WindowTabs(windowID: "1", urls: ["https://github.com"], activeIndex: 1),
+        "2": WindowTabs(windowID: "2", urls: ["https://docs.x", "https://claude.ai/chat/1"], activeIndex: 1),
+        "3": WindowTabs(windowID: "3", urls: ["https://docs.x"], activeIndex: 1),
+    ]
+
+    @Test func noProfileSearchesEveryPairedWindow() throws {
+        let action = try Jump.decide(destination: anyProfile(), running: true, windows: chrome, titles: titles, tabs: tabs(everyWindow))
+        #expect(action == .focus(windowID: "2", tabIndex: 2, titleIndex: 1))
+    }
+
+    @Test func noProfileOpensWithNoFolder() throws {
+        let action = try Jump.decide(destination: anyProfile(match: ["mail.google.com/"]), running: true, windows: chrome, titles: titles, tabs: tabs(everyWindow))
+        #expect(action == .open(profileDirectory: nil, url: url, reason: .noMatchingTab))
+    }
+
+    @Test func aPlainBrowserAlwaysOpens() throws {
+        let action = try Jump.decide(destination: anyProfile(.safari), running: true, windows: chrome, titles: titles, tabs: tabs([:]))
+        #expect(action == .open(profileDirectory: nil, url: url, reason: .plain))
+    }
+
+    @Test func withOneProfileTitlesNeedNoLabel() throws {
+        let one = [ChromeWindow(id: "5", name: "Claude")]
+        let action = try Jump.decide(destination: destination(label: nil), running: true, windows: one, titles: ["Claude - Brave"], tabs: tabs([
+            "5": WindowTabs(windowID: "5", urls: ["https://claude.ai/chat/2"], activeIndex: 1),
+        ]))
+        #expect(action == .focus(windowID: "5", tabIndex: 1, titleIndex: 0))
+    }
+
+    @Test func aWebAppWindowIsNeverFocused() throws {
+        // Brave lists a web app's window with no name, as measured; its tab is the site's.
+        let windows = [ChromeWindow(id: "7", name: ""), ChromeWindow(id: "8", name: "Docs")]
+        let action = try Jump.decide(destination: anyProfile(), running: true, windows: windows, titles: [title("Docs", kim)], tabs: tabs([
+            "7": WindowTabs(windowID: "7", urls: ["https://claude.ai/chat/3"], activeIndex: 1),
+            "8": WindowTabs(windowID: "8", urls: ["https://docs.x"], activeIndex: 1),
+        ]))
+        #expect(action == .open(profileDirectory: nil, url: url, reason: .noMatchingTab))
     }
 }

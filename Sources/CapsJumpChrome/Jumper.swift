@@ -118,9 +118,11 @@ public final class Jumper {
             windows = try scripting?.windows() ?? []
         }
 
+        // Chrome only until the live side takes a browser.
+        let destination = Destination(site: target.site, browser: .chrome, target: target, fellBack: false, isDefault: true, windowLabel: target.label)
         let action = try Jump.decide(
-            target: target,
-            chromeRunning: chrome != nil,
+            destination: destination,
+            running: chrome != nil,
             windows: windows,
             titles: axWindows.map(\.title)
         ) { (id: String) throws(ChromeError) -> WindowTabs in
@@ -136,8 +138,8 @@ public final class Jumper {
             ChromeAccessibility.raise(axWindows[titleIndex].element)
             return .focused(site: target.site.name, windowID: windowID, tabIndex: tabIndex)
         case let .open(profileDirectory, url, reason):
-            try await ChromeLauncher.open(url, profileDirectory: profileDirectory)
-            return .opened(site: target.site.name, profileDirectory: profileDirectory, reason: reason)
+            try await ChromeLauncher.open(url, profileDirectory: profileDirectory ?? target.profile.directory)
+            return .opened(site: target.site.name, profileDirectory: profileDirectory ?? target.profile.directory, reason: reason)
         }
     }
 }
