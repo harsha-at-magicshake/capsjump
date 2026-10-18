@@ -111,12 +111,11 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func checkConfig() {
         let configPath = Paths.config()
-        let statePath = Browser.chrome.localState()!
         let findings = Checkup.run(
             configText: try? String(contentsOf: configPath, encoding: .utf8),
             configPath: configPath.path,
-            localState: FileManager.default.contents(atPath: statePath.path),
-            localStatePath: statePath.path,
+            defaultBrowser: .chrome,
+            catalog: Inputs.chromeOnly,
             lookup: Lookup.thisMac
         ) + KeyState.findings(config: try? Inputs.config(), running: true)
 

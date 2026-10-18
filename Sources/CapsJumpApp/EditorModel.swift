@@ -635,7 +635,7 @@ final class EditorModel: ObservableObject {
     /// Where a site lands, once the whole config is valid.
     func landing(site id: Int) -> String? {
         guard let catalog, let name = draft.site(id)?.site.name, let site = check.config?.site(named: name) else { return nil }
-        return Checkup.site(site, catalog: catalog).text.components(separatedBy: " → ").dropFirst().joined(separator: " → ")
+        return Checkup.site(site, defaultBrowser: .chrome, catalog: { $0 == .chrome ? .read(catalog) : .missing(path: "") }).text.components(separatedBy: " → ").dropFirst().joined(separator: " → ")
     }
 
     /// Where the app a key names is, as the keys would find it; asked once per app.

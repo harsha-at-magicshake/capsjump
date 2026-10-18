@@ -150,6 +150,7 @@ import Testing
 
         let offline = StarterConfig.render(catalog: nil)
         #expect(ConfigWriter.isCanonical(offline))
-        #expect(try ConfigParser.parse(offline).sites.first?.account == "you@example.com")
+        #expect(try ConfigParser.parse(offline).sites.first?.account == nil)
+        #expect(try ConfigParser.parse(offline).sites.first?.profile == nil)
     }
 }

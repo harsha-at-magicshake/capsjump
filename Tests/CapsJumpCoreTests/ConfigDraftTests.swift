@@ -200,7 +200,9 @@ import Testing
         let lookup = Lookup(home: "/Users/kim", exists: { $0 == "/Applications/iTerm.app" }, linkHandler: { $0.scheme == "slack" ? "Slack" : nil })
         #expect(Checkup.key(KeyBinding(key: "s", action: .app(.name("iTerm"))), lookup: lookup) == Finding(.ok, "`s` → app /Applications/iTerm.app"))
         #expect(Checkup.key(KeyBinding(key: "w", action: .url(URL(string: "slack://open")!)), lookup: lookup) == Finding(.ok, "`w` → url slack://open (opens in Slack)"))
-        #expect(Checkup.site(site("github", account: "alex@globex.io"), catalog: try catalog()) == Finding(.ok, "github → Profile 15, windows labelled “Alex (globex.io)”"))
-        #expect(Checkup.site(site("x", account: "nobody@x.com"), catalog: try catalog()).level == .problem)
+        let chrome = try catalog()
+        let reads = { (b: Browser) -> CatalogRead in b == .chrome ? .read(chrome) : .missing(path: "x") }
+        #expect(Checkup.site(site("github", account: "alex@globex.io"), defaultBrowser: .chrome, catalog: reads) == Finding(.ok, "github → Google Chrome (default), Profile 15, windows labelled “Alex (globex.io)”"))
+        #expect(Checkup.site(site("x", account: "nobody@x.com"), defaultBrowser: .chrome, catalog: reads).level == .problem)
     }
 }

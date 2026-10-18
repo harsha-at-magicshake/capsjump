@@ -67,6 +67,12 @@ public enum Inputs {
         }
     }
 
+    /// Chrome's list only, until every browser's is read (temporary).
+    public static func chromeOnly(_ browser: Browser) -> CatalogRead {
+        guard browser == .chrome else { return .missing(path: browser.localState()?.path ?? "") }
+        return (try? profiles()).map(CatalogRead.read) ?? .missing(path: Browser.chrome.localState()!.path)
+    }
+
     public static func profiles(at url: URL = Browser.chrome.localState()!) throws(JumpError) -> ProfileCatalog {
         guard let data = FileManager.default.contents(atPath: url.path) else {
             throw .profiles("Chrome's profile list is missing at \(url.path); has Chrome been opened on this Mac?")

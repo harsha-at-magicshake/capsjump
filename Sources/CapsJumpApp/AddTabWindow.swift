@@ -108,7 +108,7 @@ final class AddTabModel: ObservableObject {
     /// Where the site lands, once it is valid: "Profile 1, windows labelled “Alex (acme.dev)”".
     var landing: String? {
         guard let catalog, let site = draft.config?.site(named: siteName) else { return nil }
-        let text = Checkup.site(site, catalog: catalog).text
+        let text = Checkup.site(site, defaultBrowser: .chrome, catalog: { $0 == .chrome ? .read(catalog) : .missing(path: "") }).text
         return text.components(separatedBy: " → ").dropFirst().joined(separator: " → ")
     }
 
@@ -265,7 +265,7 @@ final class AddTab: NSObject, NSWindowDelegate {
         let profile = catalog?.profile(forTitle: tab.title)
         var draft = ConfigDraft(contents.map { ConfigReader.read($0.text) } ?? ConfigSource())
         let subject: AddTabModel.Subject
-        if let catalog, let profile, let site = TabCapture.existingSite(for: tab.url, profile: profile, in: config, catalog: catalog) {
+        if let catalog, let profile, let site = TabCapture.existingSite(for: tab.url, browser: .chrome, profile: profile, in: config, defaultBrowser: .chrome, catalog: { $0 == .chrome ? .read(catalog) : .missing(path: "") }) {
             subject = .existing(name: site.name)
         } else {
             let name = TabCapture.suggestedName(for: page, taken: Set(config.sites.map(\.name)))

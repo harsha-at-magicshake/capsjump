@@ -117,12 +117,22 @@ import Testing
         let globex = try #require(c.profile(directory: "Profile 15"))
         let sam = try #require(c.profile(directory: "Profile 17"))
         func existing(_ url: String, _ profile: ChromeProfile) -> String? {
-            TabCapture.existingSite(for: url, profile: profile, in: config, catalog: c)?.name
+            TabCapture.existingSite(for: url, browser: .chrome, profile: profile, in: config, defaultBrowser: .chrome, catalog: { $0 == .chrome ? .read(c) : .missing(path: "x") })?.name
         }
         #expect(existing("https://github.com/stigmer/capsjump/pulls/15", acme) == "prs")
         #expect(existing("https://www.github.com/settings", acme) == "github")
         #expect(existing("https://github.com/stigmer/capsjump/pulls", globex) == "github-globex")
         #expect(existing("https://github.com/", sam) == nil)
         #expect(existing("https://gitlab.com/", acme) == nil)
+    }
+
+    @Test func aSiteWithNoProfileIsOnTheTabInAnyOfItsBrowsersProfiles() throws {
+        let c = try catalog()
+        let config = try ConfigParser.parse("sites:\n  - name: docs\n    open: https://docs.x.com/\n")
+        let acme = try #require(c.profile(directory: "Profile 1"))
+        let reads = { (b: Browser) -> CatalogRead in .read(c) }
+        #expect(TabCapture.existingSite(for: "https://docs.x.com/a", browser: .brave, profile: acme, in: config, defaultBrowser: .brave, catalog: reads)?.name == "docs")
+        #expect(TabCapture.existingSite(for: "https://docs.x.com/a", browser: .brave, profile: nil, in: config, defaultBrowser: .brave, catalog: reads)?.name == "docs")
+        #expect(TabCapture.existingSite(for: "https://docs.x.com/a", browser: .chrome, profile: acme, in: config, defaultBrowser: .brave, catalog: reads) == nil)
     }
 }
