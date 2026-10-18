@@ -1,5 +1,5 @@
-// The capsjump command: writes and checks the config, lists Chrome's profiles, and
-// hands links to CapsJump.app. It never talks to Chrome itself: the app holds the
+// The capsjump command: writes and checks the config, lists a browser's profiles, and
+// hands links to CapsJump.app. It never talks to a browser itself: the app holds the
 // permissions, so `jump` and `setup` go through macOS's link handling to it. `check` also
 // reads whether the app runs and whether Caps Lock is mapped, the two things the keys need;
 // `pause` and `resume` reach the running app by link, and `quit` asks it to quit.
@@ -15,7 +15,7 @@ import CapsJumpSystem
 struct CapsJump: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "capsjump",
-        abstract: "Shortcuts built around Caps Lock: apps, Chrome sites in the right account, windows and links.",
+        abstract: "Shortcuts built around Caps Lock: apps, sites in the right browser and account, windows and links.",
         discussion: "Keys and sites live in ~/.capsjump.yaml. Hold Caps Lock and press a key; each site is also the link capsjump://<name>.",
         version: Version.current,
         subcommands: [Init.self, Profiles.self, Check.self, Jump.self, Setup.self, PauseCommand.self, ResumeCommand.self, QuitCommand.self, Logs.self, VersionCommand.self]
@@ -23,32 +23,52 @@ struct CapsJump: ParsableCommand {
 }
 
 struct Init: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "Write a starter ~/.capsjump.yaml in this Mac's first Chrome account.")
+    static let configuration = CommandConfiguration(abstract: "Write a starter ~/.capsjump.yaml for this Mac's default browser.")
 
     func run() throws {
         let path = Paths.config()
         guard !FileManager.default.fileExists(atPath: path.path) else {
             throw ValidationError("\(path.path) already exists; it was left as it is")
         }
-        let catalog: ProfileCatalog? = { if case let .read(c) = Inputs.catalog(for: Browsers.defaultBrowser()) { c } else { nil } }()
+        let browser = Browsers.defaultBrowser()
+        let read = Inputs.catalog(for: browser)
+        var catalog: ProfileCatalog?
+        if case let .read(found) = read { catalog = found }
         try ConfigFile(url: path).write(StarterConfig.config(catalog: catalog), replacing: nil)
         print("wrote \(path.path)")
-        if catalog == nil {
-            print("note: Chrome's profiles could not be read, so the example site says you@example.com; `capsjump profiles` lists the real accounts once Chrome has run")
+        if catalog == nil, let problem = read.problem(for: browser) {
+            print("note: \(browser)'s profiles could not be read (\(problem)), so the example site has no account and opens in \(browser)'s own choice of profile")
         }
         print("next: edit it, then run `capsjump check`")
     }
 }
 
 struct Profiles: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "List Chrome's profiles: folder, account and window label.")
+    static let configuration = CommandConfiguration(abstract: "List a browser's profiles: folder, account and window label.")
+
+    @Argument(help: "chrome, brave, edge, vivaldi or chromium; the default browser when left out.")
+    var browser: String?
 
     func run() throws {
-        let browser = Browsers.defaultBrowser()
-        let read = Inputs.catalog(for: browser)
-        guard case let .read(catalog) = read else {
-            throw ValidationError(read.problem(for: browser) ?? "")
+        let defaultBrowser = Browsers.defaultBrowser()
+        let chosen: Browser
+        if let browser {
+            guard let named = Browser.named(browser) else {
+                let known = Browser.known.compactMap(\.name).joined(separator: ", ")
+                throw ValidationError("`\(browser)` is not a browser CapsJump knows; it knows: \(known)")
+            }
+            chosen = named
+        } else {
+            chosen = defaultBrowser
         }
+        guard chosen.support == .full else {
+            throw ValidationError("\(chosen) has no profiles CapsJump can read")
+        }
+        let read = Inputs.catalog(for: chosen)
+        guard case let .read(catalog) = read else {
+            throw ValidationError(read.problem(for: chosen) ?? "")
+        }
+        print("\(chosen)" + (chosen == defaultBrowser ? " (default browser)" : ""))
         let rows = catalog.profiles.map { profile in
             [profile.directory, profile.email.isEmpty ? "(not signed in)" : profile.email, profile.name,
              profile.windowLabel + (catalog.sharingLabel(with: profile).isEmpty ? "" : "  *")]
@@ -102,7 +122,7 @@ struct Jump: ParsableCommand {
 }
 
 struct Setup: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "Ask macOS for CapsJump's permissions (Accessibility, Automation of Chrome, notifications).")
+    static let configuration = CommandConfiguration(abstract: "Ask macOS for CapsJump's permissions (Accessibility, Automation of your browsers, notifications).")
 
     func run() throws {
         try LinkHandler.open(Link.setupURL)
