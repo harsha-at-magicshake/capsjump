@@ -1,5 +1,6 @@
-// Add Current Tab: the tab in front of Chrome becomes a site with a key, in one small
-// window. The page and its account come from Chrome, the name from the page's host, and a
+// Add Current Tab: the tab in front of a browser becomes a site with a key, in one small
+// window. The page and its account come from that browser, and the site names the browser
+// only when it isn't the default one; the name comes from the page's host, and a
 // free key is offered; every field is judged by the config's own rules through a
 // ConfigDraft, so a problem shows under its field while it's typed. When the page is
 // already a site in that account, the window offers that site a key instead. Saving goes
@@ -28,11 +29,15 @@ final class AddTabModel: ObservableObject {
     }
     let subject: Subject
     let catalog: ProfileCatalog?
+    private let defaultBrowser: Browser
+    private let reads: (Browser) -> CatalogRead
 
-    init(draft: ConfigDraft, subject: Subject, catalog: ProfileCatalog?, profile: ChromeProfile?) {
+    init(draft: ConfigDraft, subject: Subject, catalog: ProfileCatalog?, profile: ChromeProfile?, defaultBrowser: Browser, reads: @escaping (Browser) -> CatalogRead) {
         self.draft = draft
         self.subject = subject
         self.catalog = catalog
+        self.defaultBrowser = defaultBrowser
+        self.reads = reads
         profileDirectory = profile?.directory
         pickProfile()
         key = TabCapture.suggestedKey(for: siteName, free: draft.freeKeys())
@@ -59,7 +64,7 @@ final class AddTabModel: ObservableObject {
         set { updateSite { $0.open = newValue } }
     }
 
-    /// The account typed by hand, when Chrome's profile list can't be read.
+    /// The account typed by hand, when the browser's profile list can't be read.
     var account: String {
         get { newSite?.account ?? "" }
         set { updateSite { $0.account = newValue } }
@@ -107,8 +112,8 @@ final class AddTabModel: ObservableObject {
 
     /// Where the site lands, once it is valid: "Profile 1, windows labelled “Alex (acme.dev)”".
     var landing: String? {
-        guard let catalog, let site = draft.config?.site(named: siteName) else { return nil }
-        let text = Checkup.site(site, defaultBrowser: .chrome, catalog: { $0 == .chrome ? .read(catalog) : .missing(path: "") }).text
+        guard let site = draft.config?.site(named: siteName) else { return nil }
+        let text = Checkup.site(site, defaultBrowser: defaultBrowser, catalog: reads).text
         return text.components(separatedBy: " → ").dropFirst().joined(separator: " → ")
     }
 
@@ -214,7 +219,7 @@ struct AddTabView: View {
     }
 }
 
-/// Opens the Add window for the tab Chrome showed, after the cases that need no window.
+/// Opens the Add window for the tab a browser showed, after the cases that need no window.
 @MainActor
 final class AddTab: NSObject, NSWindowDelegate {
     /// How the key field reaches the keys; the app sets it before the window opens.
@@ -222,13 +227,13 @@ final class AddTab: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var expected: String?
 
-    func open(_ tab: FrontTab?) {
+    func open(_ tab: FrontTab?, browser: Browser) {
         if let window {
             AppWindows.show(window)
             return
         }
         guard let tab else {
-            Alerts.show("Chrome has no window open", "Open the page you want a key for, then try again.")
+            Alerts.show("\(browser) has no window open", "Open the page you want a key for, then try again.")
             return
         }
         guard let page = TabCapture.page(tab.url) else {
@@ -261,17 +266,21 @@ final class AddTab: NSObject, NSWindowDelegate {
         }
         expected = contents?.text
 
-        let catalog: ProfileCatalog? = { if case let .read(c) = Inputs.catalog(for: .chrome) { c } else { nil } }()
+        let reads = Inputs.catalogs()
+        let defaultBrowser = Browsers.defaultBrowser()
+        var catalog: ProfileCatalog?
+        if case let .read(found) = reads(browser) { catalog = found }
         let profile = catalog?.profile(forTitle: tab.title)
         var draft = ConfigDraft(contents.map { ConfigReader.read($0.text) } ?? ConfigSource())
         let subject: AddTabModel.Subject
-        if let catalog, let profile, let site = TabCapture.existingSite(for: tab.url, browser: .chrome, profile: profile, in: config, defaultBrowser: .chrome, catalog: { $0 == .chrome ? .read(catalog) : .missing(path: "") }) {
+        if let site = TabCapture.existingSite(for: tab.url, browser: browser, profile: profile, in: config, defaultBrowser: defaultBrowser, catalog: reads) {
             subject = .existing(name: site.name)
         } else {
             let name = TabCapture.suggestedName(for: page, taken: Set(config.sites.map(\.name)))
-            subject = .newSite(id: draft.addSite(SiteSource(index: draft.sites.count, name: name, open: page.absoluteString)))
+            let named = browser == defaultBrowser ? nil : browser.name
+            subject = .newSite(id: draft.addSite(SiteSource(index: draft.sites.count, name: name, open: page.absoluteString, browser: named)))
         }
-        let model = AddTabModel(draft: draft, subject: subject, catalog: catalog, profile: profile)
+        let model = AddTabModel(draft: draft, subject: subject, catalog: catalog, profile: profile, defaultBrowser: defaultBrowser, reads: reads)
         let view = AddTabView(
             model: model,
             onCancel: { [weak self] in self?.window?.close() },

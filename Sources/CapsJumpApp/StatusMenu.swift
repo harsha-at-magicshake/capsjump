@@ -68,7 +68,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             menu.addItem(pause)
         }
         let addTab = action("Add Current Tab…", #selector(addTab))
-        addTab.isEnabled = ChromeLauncher.running(.chrome) != nil
+        addTab.isEnabled = Browser.known.contains { $0.support == .full && ChromeLauncher.running($0) != nil }
         menu.addItem(addTab)
         menu.addItem(action("Edit Config…", #selector(editConfig)))
         menu.addItem(action("Open Config File", #selector(openConfigFile)))

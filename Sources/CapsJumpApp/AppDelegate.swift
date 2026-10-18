@@ -1,7 +1,7 @@
 // Runs the keys from launch to quit, and receives every capsjump:// link. Key actions and
 // links run one at a time, in arrival order: a site jumps, an app comes forward, a window
-// snaps, a link opens, `_setup` asks for the permissions, and Add Current Tab reads Chrome
-// before its window opens. Setup also runs by itself,
+// snaps, a link opens, `_setup` asks for the permissions, and Add Current Tab reads the
+// browser in front (or the one used last) before its window opens. Setup also runs by itself,
 // once per launch, so the prompts come up without anyone typing `capsjump setup`: when the
 // app is opened directly (not by a link) with a permission missing, and when a jump fails
 // for want of one (or Add Current Tab does). A launch by a link never adds a second round
@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private var menu: StatusMenu?
     private let addTab = AddTab()
+    private let browsers = BrowserTracker()
     private let editor = Editor()
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -145,8 +146,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func addCurrentTab() {
         enqueue { [self] in
+            guard let browser = browsers.tabBrowser() else {
+                Alerts.show(
+                    "No browser CapsJump can read tabs from is open",
+                    "Add Current Tab reads the tab in front of Chrome, Brave, Edge, Vivaldi or Chromium. Open the page in one of them, then try again."
+                )
+                return
+            }
             do throws(ChromeError) {
-                addTab.open(try FrontTabReader.read(browser: .chrome))
+                addTab.open(try FrontTabReader.read(browser: browser), browser: browser)
             } catch {
                 fail(error.description)
                 if error.isMissingPermission && !setupShown {
