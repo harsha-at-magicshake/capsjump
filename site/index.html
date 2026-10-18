@@ -6,9 +6,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CapsJump</title>
-  <meta name="description" content="Caps Lock finally has a job. Hold it and press a key to bring an app forward, land on a site in the right Chrome account, snap a window, or open a link.">
+  <meta name="description" content="Caps Lock finally has a job. Hold it and press a key to bring an app forward, land on a site in the right browser account, snap a window, or open a link.">
   <meta property="og:title" content="CapsJump: Caps Lock finally has a job">
-  <meta property="og:description" content="Hold Caps Lock and press a key: your app comes forward, GitHub opens in your work Chrome account, the window snaps to half the screen.">
+  <meta property="og:description" content="Hold Caps Lock and press a key: your app comes forward, GitHub opens in your work account, the window snaps to half the screen.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://whysosuresh.github.io/capsjump/">
   <meta property="og:image" content="https://whysosuresh.github.io/capsjump/card.png">
@@ -29,7 +29,7 @@
   <main>
     <section class="hero">
       <h1>Caps Lock finally has a job.</h1>
-      <p class="lede">It spent decades waiting for someone to SHOUT. Now hold it and press a key: your terminal is just there, GitHub opens in your work Chrome account, the window snaps to half the screen. One small file says which key does what.</p>
+      <p class="lede">It spent decades waiting for someone to SHOUT. Now hold it and press a key: your terminal is just there, GitHub opens in your work account, the window snaps to half the screen. One small file says which key does what.</p>
       <div class="install-line">
         <code id="install">brew install --cask whysosuresh/tap/capsjump</code>
         <button type="button" class="copy" data-copy="install" aria-label="Copy the install command">Copy</button>
@@ -75,7 +75,7 @@
         <p><kbd>Caps</kbd> + <kbd>S</kbd> and your terminal is just there. Not running? It starts. Hiding with no window? It opens one. No more fishing in the Dock.</p>
       </article>
       <article>
-        <h2>Chrome accounts</h2>
+        <h2>Browser accounts</h2>
         <p><kbd>Caps</kbd> + <kbd>G</kbd> lands on the GitHub tab in your work account. Not your personal one. Never your personal one. No tab yet? It opens one in the right place.</p>
       </article>
       <article>
@@ -101,9 +101,9 @@
       <figure class="shot">
         <picture>
           <source media="(prefers-color-scheme: dark)" srcset="editor-sites-dark.png">
-          <img src="editor-sites.png" width="900" height="600" loading="lazy" alt="The config window on Sites: each site with its own icon, its Chrome account and that account's picture, its host and the keys that land there, a globe for a site Chrome hasn't shown yet, and github open with its Account menu showing each account with its picture">
+          <img src="editor-sites.png" width="900" height="600" loading="lazy" alt="The config window on Sites: each site with its own icon, its account and that account's picture, its host and the keys that land there, a globe for a site its browser hasn't shown yet, and github open with its Account menu showing each account with its picture">
         </picture>
-        <figcaption>Each site with its own icon, its Chrome account (with the picture Chrome shows for it) and the keys that land on it. Rename one and its keys come along.</figcaption>
+        <figcaption>Each site with its own icon, its account (with the picture its browser shows for it) and the keys that land on it. Rename one and its keys come along.</figcaption>
       </figure>
       <figure class="shot">
         <picture>
@@ -117,7 +117,7 @@
           <source media="(prefers-color-scheme: dark)" srcset="add-tab-dark.png">
           <img src="add-tab.png" width="480" height="336" loading="lazy" alt="Add Current Tab: a Figma tab becomes a site named figma, in the Work account with its picture, on Caps Lock + I">
         </picture>
-        <figcaption>Page open in Chrome? <strong>Add Current Tab…</strong> names it, knows the account, offers a free key. Click Add.</figcaption>
+        <figcaption>Page open in your browser? <strong>Add Current Tab…</strong> names it, knows the account, offers a free key. Click Add.</figcaption>
       </figure>
     </section>
 
@@ -148,8 +148,8 @@ keys:
 capsjump setup
 capsjump init</code></pre>
       <ol>
-        <li><code>capsjump setup</code> asks for the permissions once (Accessibility, Chrome automation, notifications) and starts CapsJump at login. A Caps Lock symbol appears in the menu bar.</li>
-        <li><code>capsjump init</code> writes a starter <code>~/.capsjump.yaml</code> in your first Chrome account; <code>capsjump profiles</code> lists the others. Edit it, then run <code>capsjump check</code>.</li>
+        <li><code>capsjump setup</code> asks for the permissions once (Accessibility, browser automation, notifications) and starts CapsJump at login. A Caps Lock symbol appears in the menu bar.</li>
+        <li><code>capsjump init</code> writes a starter <code>~/.capsjump.yaml</code> for your default browser; <code>capsjump profiles</code> lists its profiles. Edit it, then run <code>capsjump check</code>.</li>
       </ol>
       <h3>Moving from stigmer/tap</h3>
       <p>CapsJump used to install from <code>stigmer/tap</code>. Homebrew doesn't move an installed cask from one tap to another by itself, so if you installed it from there, move it once:</p>
@@ -161,8 +161,8 @@ brew install --cask whysosuresh/tap/capsjump</code></pre>
     <section class="notes">
       <h2>Good to know</h2>
       <ul>
-        <li><strong>Chrome only, for sites.</strong> Site keys work with Google Chrome and its accounts; app, window and link keys work with anything.</li>
-        <li><strong>Site icons and account pictures come from Chrome.</strong> Each site shows the icon Chrome has already saved on your Mac for that account, and each account the picture Chrome shows for it. Nothing is fetched; a site Chrome hasn't shown there yet keeps a globe.</li>
+        <li><strong>Your browser, for sites.</strong> Sites open in your default browser, or the one a site names. In Chrome, Brave, Edge, Vivaldi and Chromium they land in the right account, on the tab you already have open; other browsers just open the page. App, window and link keys work with anything.</li>
+        <li><strong>Site icons and account pictures come from your browser.</strong> Each site shows the icon its browser has already saved on your Mac for that account, and each account the picture the browser shows for it. Nothing is fetched; a site the browser hasn't shown there yet keeps a globe.</li>
         <li><strong>Windows stay on their screen.</strong> A window snaps within the screen it is on; moving it to another screen isn't a key yet.</li>
         <li><strong>Not while typing a password.</strong> macOS keeps every app's shortcuts out of password fields; the keys work again as soon as you leave one.</li>
         <li><strong>Miss SHOUTING?</strong> Hold Shift, like everyone else. Or pause or quit CapsJump from its icon in the menu bar, and Caps Lock goes back to its old job at once.</li>

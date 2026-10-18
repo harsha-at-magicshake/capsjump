@@ -4,7 +4,7 @@
 
 <h1 align="center">CapsJump</h1>
 
-<p align="center"><strong>Caps Lock finally has a job.</strong><br>Hold it and press a key to bring an app forward, land on a site in the right Chrome account, snap a window, or open a link.</p>
+<p align="center"><strong>Caps Lock finally has a job.</strong><br>Hold it and press a key to bring an app forward, land on a site in the right browser account, snap a window, or open a link.</p>
 
 <p align="center">
   <a href="https://github.com/whysosuresh/capsjump/releases/latest"><img src="https://img.shields.io/github/v/release/whysosuresh/capsjump" alt="Latest release"></a>
@@ -14,7 +14,7 @@
 
 <p align="center"><a href="https://whysosuresh.github.io/capsjump/">whysosuresh.github.io/capsjump</a></p>
 
-Caps Lock has spent decades waiting for someone to SHOUT. CapsJump gives it a real job. Hold Caps Lock and press S: your terminal is just there. Caps Lock and G: the GitHub tab in your work Chrome account comes forward (not your personal one, never your personal one), or opens there if it isn't open yet. Caps Lock and ←: the front window takes the left half of the screen. Caps Lock and W: a Slack channel opens. One small file, `~/.capsjump.yaml`, says which key does what.
+Caps Lock has spent decades waiting for someone to SHOUT. CapsJump gives it a real job. Hold Caps Lock and press S: your terminal is just there. Caps Lock and G: the GitHub tab in your work account comes forward (not your personal one, never your personal one), or opens there if it isn't open yet. Caps Lock and ←: the front window takes the left half of the screen. Caps Lock and W: a Slack channel opens. One small file, `~/.capsjump.yaml`, says which key does what.
 
 ## Install
 
@@ -26,7 +26,7 @@ capsjump init
 
 - Homebrew loads a cask from outside its own taps only once you trust it; naming the cask in full, as above, trusts this one cask and nothing else.
 - `capsjump setup` asks for the app's permissions once (upgrades keep them) and starts CapsJump at login.
-- `capsjump init` writes a starter `~/.capsjump.yaml` in your first Chrome account; `capsjump profiles` lists the others. Edit it, then run `capsjump check`.
+- `capsjump init` writes a starter `~/.capsjump.yaml` for your default browser; `capsjump profiles` lists its profiles. Edit it, then run `capsjump check`.
 
 ### Moving from stigmer/tap
 
@@ -41,7 +41,7 @@ Your Accessibility permission, start-at-login and `~/.capsjump.yaml` stay as the
 
 ## Configure
 
-The quickest way: open a page in Chrome and pick **Add Current Tab…** from CapsJump's menu, or open **Edit Config…** for a window with every site and key: Sites, Keys and Windows on the left, every site, key or window move as one line you can search in the middle, and the one you pick open for editing on the right. Each field is checked as you type, by the same rules `capsjump check` uses, and saving applies at once.
+The quickest way: open a page in your browser and pick **Add Current Tab…** from CapsJump's menu, or open **Edit Config…** for a window with every site and key: Sites, Keys and Windows on the left, every site, key or window move as one line you can search in the middle, and the one you pick open for editing on the right. Each field is checked as you type, by the same rules `capsjump check` uses, and saving applies at once.
 
 <p align="center">
   <picture>
@@ -71,8 +71,11 @@ sites:
   open: https://github.com/your-org/your-repo/pulls
   match: [github.com/your-org/your-repo/pulls, github.com/]
 - name: claude-client
+  browser: chrome
   account: client@example.com
   open: https://claude.ai/new
+- name: news
+  open: https://news.ycombinator.com/
 
 keys:
   s: {app: iTerm}
@@ -95,17 +98,20 @@ Each entry under `keys:` is Caps Lock + one key. Key names: `a`–`z`, `0`–`9`
 - `app`: an app's name, such as `Slack`, or a path to an .app that starts with `/` or `~/`. A name is looked for in `/Applications`, `/Applications/Utilities`, `/System/Applications`, `/System/Applications/Utilities`, `~/Applications` and `/System/Library/CoreServices`, in that order. The app comes forward, starting if it isn't running and opening a window if it has none.
 - `site`: one of the sites below. See [What a jump does](#what-a-jump-does).
 - `window`: `left-half`, `right-half`, `top-half`, `bottom-half` or `maximize` (fill the screen, staying on this desktop), for the front window, within the screen it is on. `top-half` and `bottom-half` need CapsJump 0.6.0 or later; if this file syncs to a Mac with an older CapsJump, that Mac refuses the file and keeps its last keys until it is updated.
-- `url`: any link with a scheme. It opens the way a clicked link does: `slack://…` or `zoommtg://…` in the app that owns it, `https://…` in your default browser. Unlike `site`, it opens afresh each time; use `site` to land on a tab that is already open in a Chrome account.
+- `url`: any link with a scheme. It opens the way a clicked link does: `slack://…` or `zoommtg://…` in the app that owns it, `https://…` in your default browser. Unlike `site`, it opens afresh each time; use `site` to land on a tab that is already open.
 
 While Caps Lock is held, a key with nothing bound does nothing. A file with no `keys:` leaves Caps Lock as it is.
 
 ### Sites
 
 - `name`: the site's name, lower-case letters, digits and hyphens. Each site is also the link `capsjump://<name>`, for launchers and scripts.
-- `account`: the account's email, or the profile's name for a profile with no signed-in account. `capsjump profiles` lists both.
+- `browser`: the browser the site always opens in: `chrome`, `brave`, `edge`, `vivaldi`, `chromium`, `arc`, `safari` or `firefox`. Leave it out and the site opens in your Mac's default browser.
+- `account`: the account's email, or the profile's name for a profile with no signed-in account (Brave's profiles have only names). `capsjump profiles` lists both. Leave it and `profile` out, and the site opens wherever your browser opens a link, finding its tab in any window.
 - `profile`: a profile folder (`Profile 26`) instead of, or as well as, `account`, for when two profiles share an account or a name.
 - `open`: the page opened when no tab matches.
 - `match`: URL prefixes without the scheme, most specific first. A tab matches when its URL (without `https://` and `www.`) starts with one. The default is the `open` URL's host, e.g. `claude.ai/`.
+
+Chrome, Brave, Edge, Vivaldi and Chromium get the whole jump: the right profile, and the tab you already have open. Arc, Safari, Firefox and any other browser just open the page, so a site there takes no `account`. A site with an `account` and no `browser` goes to your default browser when it has that account, and to Chrome otherwise, so a file written for Chrome keeps working whatever your default is; `capsjump check` says when a site falls back. A site that names only a `profile` folder tries Chrome first, since every Chromium browser has a `Default`. `browser`, and sites with no account, need CapsJump 0.8.0 or later; an older CapsJump refuses the file and keeps its last keys.
 
 This is the layout CapsJump itself writes, and a file in it never loses anything when CapsJump saves it. A file with comments or a layout of its own is rewritten only after CapsJump asks. Edits apply as soon as the file is saved. Unknown keys are refused, so a typo is reported instead of being ignored. A broken edit keeps the keys you had and says what is wrong in a notification, and `capsjump check` lists every problem with its line.
 
@@ -120,8 +126,8 @@ macOS keeps every app's shortcuts out of password fields, so the keys do nothing
 CapsJump puts its mark in the menu bar, dimmed while it doesn't have Caps Lock. Its menu:
 
 - **Pause Keys / Resume Keys**: gives Caps Lock back, or takes it again. A pause lasts until you resume, across restarts.
-- **Add Current Tab…**: turns the tab in front of Chrome into a site with a key. The page and its account come filled in, with a free key suggested; to change it, click the key and press the one you want. Click Add, and Caps Lock with that key lands there from then on. If the page is already one of your sites, it offers that site another key instead.
-- **Edit Config…**: a window with Sites, Keys and Windows in a sidebar, a searchable list of each, and an editor for the one you pick. Keys holds the keys that take you somewhere (an app, a site with its own icon, a link); Windows lists every move CapsJump can make, each with the key that does it, which you can change or turn off. Accounts (each with its picture, as Chrome's profile menu shows it) and sites are picked from lists, apps from a searchable list with their icons; a key is set by clicking its field and pressing the key, alone or with Caps Lock held, and a key that is taken or that CapsJump can't use is explained right there (Escape cancels, and in Windows Delete turns the move's key off); problems show under their field as you type, and Save (⌘S) applies at once. Rename a site and its keys come along. ⌘N adds, ⌫ removes (in Windows, turns the move's key off), ⌘F searches, ⌘1, ⌘2 and ⌘3 switch between Sites, Keys and Windows. Close or quit with unsaved changes and it asks first.
+- **Add Current Tab…**: turns the tab in front of your browser (Chrome, Brave, Edge, Vivaldi or Chromium; the one you used last) into a site with a key. The site names its browser only when it isn't your default. The page and its account come filled in, with a free key suggested; to change it, click the key and press the one you want. Click Add, and Caps Lock with that key lands there from then on. If the page is already one of your sites, it offers that site another key instead.
+- **Edit Config…**: a window with Sites, Keys and Windows in a sidebar, a searchable list of each, and an editor for the one you pick. Keys holds the keys that take you somewhere (an app, a site with its own icon, a link); Windows lists every move CapsJump can make, each with the key that does it, which you can change or turn off. Browsers, accounts (each with its picture, as the browser's profile menu shows it, or None for the browser's own choice) and sites are picked from lists, apps from a searchable list with their icons; a key is set by clicking its field and pressing the key, alone or with Caps Lock held, and a key that is taken or that CapsJump can't use is explained right there (Escape cancels, and in Windows Delete turns the move's key off); problems show under their field as you type, and Save (⌘S) applies at once. Rename a site and its keys come along. ⌘N adds, ⌫ removes (in Windows, turns the move's key off), ⌘F searches, ⌘1, ⌘2 and ⌘3 switch between Sites, Keys and Windows. Close or quit with unsaved changes and it asks first.
 - **Open Config File**: opens `~/.capsjump.yaml` in your editor, writing a starter file first if there is none. Saving applies the change at once.
 - **Check Config**: shows what `capsjump check` shows, with a button to Edit Config….
 - **Start at Login**: whether CapsJump starts when you log in.
@@ -133,11 +139,11 @@ From a terminal: `capsjump pause`, `capsjump resume` and `capsjump quit`. To rem
 
 A `site` key, or the link `capsjump://<name>`, runs a jump:
 
-1. Finds the site's Chrome profile from Chrome's own profile list.
-2. If Chrome is running, looks through that profile's windows, front to back, for a tab whose URL matches the first `match` prefix, then the next, preferring a window's active tab. It brings that tab and its window to the front.
-3. Otherwise it opens the `open` page in that profile: a new tab in its window, or a new window, starting Chrome if needed.
+1. Picks the site's browser (see [Sites](#sites)) and, when the site names an account or folder, its profile from that browser's own profile list.
+2. If the browser is running, looks through that profile's windows (every window, for a site with no account), front to back, for a tab whose URL matches the first `match` prefix, then the next, preferring a window's active tab. It brings that tab and its window to the front.
+3. Otherwise it opens the `open` page in that profile, or where the browser opens a link: a new tab in its window, or a new window, starting the browser if needed.
 
-Chrome's scripting interface doesn't say which profile a window belongs to, but its window title does (it ends in `– <profile label>`), and macOS Accessibility reads that title. CapsJump pairs each Chrome window with its title, so a window's profile is known without guessing. Accessibility lists only the windows on the current Space, so CapsJump sees only those: from a full-screen window or another desktop, a site whose tab is in a window elsewhere gets a new tab instead of being focused. Keep Chrome's windows on one desktop and out of full screen for jumps to find them. If two profiles carry the same label, their windows can't be told apart, so their sites always open a new tab; `capsjump check` says when that applies.
+A browser that only opens pages skips step 2. Chrome's scripting, which Brave, Edge, Vivaldi and Chromium share, doesn't say which profile a window belongs to, but its window title does (it ends in `– <profile label>`), and macOS Accessibility reads that title. CapsJump pairs each browser window with its title, so a window's profile is known without guessing. A web app's window (Outlook, say, installed from the browser) is listed with no title, so it is never the one a jump lands in; a new tab opens instead. Accessibility lists only the windows on the current Space, so CapsJump sees only those: from a full-screen window or another desktop, a site whose tab is in a window elsewhere gets a new tab instead of being focused. Keep the browser's windows on one desktop and out of full screen for jumps to find them. If two profiles carry the same label, their windows can't be told apart, so their sites always open a new tab; `capsjump check` says when that applies.
 
 If a permission is missing, the jump fails with a notification. It never opens a duplicate tab instead.
 
@@ -145,22 +151,24 @@ If a permission is missing, the jump fails with a notification. It never opens a
 
 CapsJump asks for three, all at once, with `capsjump setup`, or by itself the first time a jump finds one missing:
 
-- **Accessibility**, for the keys, to move windows, and to read Chrome's window titles and raise a window. The keys start by themselves as soon as it is granted.
-- **Automation of Google Chrome**, to read and switch tabs.
+- **Accessibility**, for the keys, to move windows, and to read your browser's window titles and raise a window. The keys start by themselves as soon as it is granted.
+- **Automation of your browser**, to read and switch tabs: the default browser, and any other a site uses, the first time it runs.
 - **Notifications**, to say why a key or a jump did nothing.
+
+If macOS won't let CapsJump read a browser's profile list, `capsjump setup` and `capsjump check` say so and point to the setting that allows it (Full Disk Access). Only sites with an `account` or `profile` need that list.
 
 Setup also adds CapsJump to your login items, so the keys are there from the moment you log in. Turn that off in System Settings › General › Login Items & Extensions.
 
 Releases are signed with a Developer ID and notarized, so macOS keeps these grants across upgrades.
 
-Site icons need no permission: the config window shows the icon Chrome has already saved on this Mac for each site, in the account the site jumps into, and each account's picture, from the same folder; it fetches nothing. A site Chrome hasn't shown in that account yet keeps a globe until it has, and an account without a Google picture shows Chrome's own outline in that profile's colours.
+Site icons need no permission: the config window shows the icon the site's browser has already saved on this Mac for it, in the account the site jumps into, and each account's picture, from the same folder; it fetches nothing. A site the browser hasn't shown in that account yet keeps a globe until it has, and an account without a Google picture shows the browser's own outline in that profile's colours.
 
 ## Commands
 
 | Command | |
 | --- | --- |
 | `capsjump init` | Write a starter `~/.capsjump.yaml`. Never overwrites. |
-| `capsjump profiles` | List Chrome's profiles: folder, account, name and window label. |
+| `capsjump profiles [browser]` | List a browser's profiles, the default browser's unless one is named: folder, account, name and window label. |
 | `capsjump check` | Validate the file, resolve every site and key, and confirm CapsJump.app is running with Caps Lock mapped. Exits non-zero on a problem. |
 | `capsjump jump <site>` | Jump, exactly as the link does. |
 | `capsjump setup` | Ask for the permissions, start CapsJump at login, and show each one's state. |
@@ -185,8 +193,8 @@ A local build is signed ad hoc, and macOS ties its permissions to that exact bui
 
 Layout:
 
-- `Sources/CapsJumpCore`: all the rules (reading, checking and writing the config, key names, what each key event does, window frames, Chrome profiles, links, window pairing, choosing a tab), with no system calls. Nearly every test is here.
-- `Sources/CapsJumpChrome`: the live side of a jump: Apple Events to Chrome, Accessibility, launching Chrome, permissions.
+- `Sources/CapsJumpCore`: all the rules (reading, checking and writing the config, key names, what each key event does, window frames, browsers and their profiles, choosing a site's browser, links, window pairing, choosing a tab), with no system calls. Nearly every test is here.
+- `Sources/CapsJumpChrome`: the live side of a jump: Apple Events to the browser, Accessibility, launching the browser, permissions. Named for Chrome, the first browser it drove.
 - `Sources/CapsJumpSystem`: the live side of the keys: the Caps Lock mapping, the event tap, watching and saving the config, moving windows, opening apps and links. Saving has its own tests, on a real disk, because its bugs would lose your file.
 - `Sources/CapsJumpApp`: the background app that runs the keys and receives `capsjump://` links.
 - `Sources/capsjump`: the CLI.

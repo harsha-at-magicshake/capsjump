@@ -1,15 +1,15 @@
 // swift-tools-version: 6.0
 //
 // CapsJump: one Mac app for shortcuts built around Caps Lock. Hold it and press a key to
-// bring an app forward, land on a site's tab in the right Chrome account, snap the front
+// bring an app forward, land on a site's tab in the right browser and account, snap the front
 // window, or open a link. CapsJumpCore is the pure logic and carries nearly every test;
 // CapsJumpChrome is the live side of a jump (Apple Events, Accessibility, launching
-// Chrome); CapsJumpSystem is the live side of the keys (the key mapping, the event tap,
+// the browser; named for Chrome, the first browser it drove); CapsJumpSystem is the live side of the keys (the key mapping, the event tap,
 // the config watcher and saving the config, moving windows, opening apps and links);
 // CapsJumpApp runs the keys and receives capsjump:// links; capsjump is the CLI. Saving
 // the config has tests of its own (CapsJumpSystemTests), because its bugs would lose the
-// user's file; so does reading Chrome's saved site icons and profile pictures (CapsJumpChromeTests), because
-// it reads a format that is Chrome's, not ours, and its tests pin what was read. scripts/bundle.sh puts the app and the CLI into
+// user's file; so does reading a browser's profile list, saved site icons and profile pictures (CapsJumpChromeTests),
+// because it reads a format that is Chrome's, not ours, and its tests pin what was read. scripts/bundle.sh puts the app and the CLI into
 // one CapsJump.app.
 
 import PackageDescription
