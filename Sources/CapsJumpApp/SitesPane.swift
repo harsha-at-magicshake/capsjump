@@ -1,9 +1,11 @@
 // The Sites section: the list of sites in the file's order, each a line with the site's own
-// icon as Chrome saved it for its account, its name, its account with the account's picture,
-// the page's host and the keys that jump to it, and beside it the picked site's
-// editor: its name (which is also its capsjump:// link), the account picked from this Mac's
-// Chrome profiles, each with its picture (typed when Chrome's list can't be read), the page it opens, the keys that
-// land on it, and under Advanced the URL prefixes that count as the site being open.
+// icon as its browser saved it for its account, its name, its account with the account's
+// picture, the page's host and the keys that jump to it, and beside it the picked site's
+// editor: its name (which is also its capsjump:// link), the browser (the default one unless
+// picked), the account picked from that browser's profiles, each with its picture, or none
+// for the browser's own choice (typed when the list can't be read, hidden for a browser
+// CapsJump reads no profiles from), the page it opens, the keys that land on it, and under
+// Advanced the URL prefixes that count as the site being open.
 // Removing a site that keys jump to asks what to do with them.
 
 import AppKit
@@ -31,7 +33,7 @@ struct SiteList: View {
             .overlay {
                 if lines.isEmpty {
                     if model.query.isEmpty {
-                        EmptyNote(title: "No sites yet", text: "The quickest way to make one: open the page in Chrome, then Add Current Tab… in the menu bar.", button: "Add Site") { model.addSite() }
+                        EmptyNote(title: "No sites yet", text: "The quickest way to make one: open the page in your browser, then Add Current Tab… in the menu bar.", button: "Add Site") { model.addSite() }
                     } else {
                         EmptyNote(title: "No sites match “\(model.query)”", text: "Search looks at the name, the account, the page and the keys.")
                     }
@@ -106,6 +108,7 @@ struct SiteEditor: View, Equatable {
                     prompt: "github",
                     problems: form.nameProblems
                 )
+                browser
                 account
                 FieldRow(
                     label: "Page",
@@ -159,14 +162,31 @@ struct SiteEditor: View, Equatable {
         .onChange(of: id) { _ in advanced = !form.matchIsDefault }
     }
 
+    private var browser: some View {
+        let id = form.id
+        return Picker("Browser", selection: Binding(get: { form.browser }, set: { browser in afterUpdate { model.setBrowser(id, browser) } })) {
+            Text("Default (\(form.defaultBrowser.displayName))").tag(Browser?.none)
+            // A browser the file names stays listed even when it isn't installed.
+            ForEach(form.browsers + (form.browser.map { form.browsers.contains($0) ? [] : [$0] } ?? []), id: \.bundleID) { browser in
+                Text(browser.displayName).tag(Optional(browser))
+            }
+        }
+    }
+
     @ViewBuilder
     private var account: some View {
         let id = form.id
         VStack(alignment: .leading, spacing: 4) {
-            if let profiles = form.profiles {
+            if form.opensIn.support == .plain {
+                Text("\(form.opensIn.displayName) opens the page; CapsJump can't read its profiles")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if let profiles = form.profiles {
                 AccountPicker(
                     selection: Binding(get: { form.profile }, set: { profile in afterUpdate { model.setProfile(id, profile) } }),
-                    profiles: profiles
+                    profiles: profiles,
+                    browser: form.opensIn,
+                    none: "None (\(form.opensIn)'s own choice)"
                 )
             } else {
                 TextField("Account", text: Binding(get: { form.site.account ?? "" }, set: { value in model.update(id) { $0.account = value } }), prompt: Text("you@work.com"))

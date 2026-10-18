@@ -1,4 +1,4 @@
-// A site's own icon in the config window, as Chrome saved it for the account the site
+// A site's own icon in the config window, as its browser saved it for the account the site
 // jumps into, read off the main thread and kept for as long as the window is open; opening
 // the window again asks afresh, so an icon Chrome has learned since shows then. Until it is
 // read, or when Chrome has none, the globe. The image crosses from the reading thread as
@@ -14,8 +14,9 @@ import CapsJumpCore
 import OSLog
 import SwiftUI
 
-/// What a site's icon is read by: the Chrome profile folder and what to ask in it.
+/// What a site's icon is read by: the browser, its profile folder and what to ask in it.
 struct SiteIconKey: Hashable, Sendable {
+    let browser: Browser
     let profile: String
     let lookup: SiteIcon.Lookup
 }
@@ -45,7 +46,10 @@ enum SiteIcons {
 
     static func icon(_ key: SiteIconKey) async -> SiteIconImage? {
         if let known = cache[key] { return known }
-        let file = ChromeFavicons.file(browser: .chrome, profile: key.profile)!
+        guard let file = ChromeFavicons.file(browser: key.browser, profile: key.profile) else {
+            cache[key] = .some(nil)
+            return nil
+        }
         let lookup = key.lookup
         let result = await Task.detached(priority: .userInitiated) { () -> Result<(Data, IconTone), ChromeFavicons.Missing> in
             ChromeFavicons.icon(for: lookup, in: file).flatMap { data in

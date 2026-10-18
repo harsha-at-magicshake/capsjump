@@ -1,5 +1,5 @@
-// Each Chrome account's picture in the config window, the round face or letter Chrome shows
-// in its own profile menu, drawn beside the account's text wherever the text is. The Google
+// Each account's picture in the config window, the round face or letter its browser (Chrome,
+// or one built like it) shows in its own profile menu, drawn beside the account's text wherever the text is. The Google
 // picture Chrome saved is read off the main thread and kept for as long as the window is
 // open, then forgotten as site icons are (a line already drawn keeps its picture until it
 // redraws, whysosuresh/capsjump#24). Until it is read, and when
@@ -16,12 +16,15 @@ import CapsJumpCore
 import OSLog
 import SwiftUI
 
-/// What an account's picture is drawn from: the profile folder and what Chrome would draw.
+/// What an account's picture is drawn from: the browser, the profile folder and what the
+/// browser would draw.
 struct ProfilePictureKey: Hashable, Sendable {
+    let browser: Browser
     let profile: String
     let picture: ProfilePicture
 
-    init(_ profile: ChromeProfile) {
+    init(_ profile: ChromeProfile, browser: Browser) {
+        self.browser = browser
         self.profile = profile.directory
         picture = profile.picture
     }
@@ -47,8 +50,7 @@ enum ProfilePictures {
     /// The account's Google picture, nil when Chrome would draw the stand-in.
     static func picture(_ key: ProfilePictureKey) async -> NSImage? {
         if let known = cached(key) { return known }
-        guard let name = key.picture.file else { return nil }
-        let file = ChromeProfilePicture.file(browser: .chrome, profile: key.profile, name: name)!
+        guard let name = key.picture.file, let file = ChromeProfilePicture.file(browser: key.browser, profile: key.profile, name: name) else { return nil }
         let result = await Task.detached(priority: .userInitiated) { ChromeProfilePicture.picture(in: file) }.value
         var image: NSImage?
         switch result {
@@ -167,13 +169,16 @@ struct ProfilePictureView: View {
 struct AccountPicker: View {
     let selection: Binding<String?>
     let profiles: [ChromeProfile]
+    let browser: Browser
+    /// The choice of no account, for the browser's own choice of profile.
+    let none: String
     @State private var images: [String: NSImage] = [:]
 
     private static let side: CGFloat = 16
 
     var body: some View {
         Picker("Account", selection: selection) {
-            Text("Choose…").tag(String?.none)
+            Text(none).tag(String?.none)
             ForEach(profiles, id: \.directory) { profile in
                 Label {
                     Text(Self.label(profile))
@@ -184,10 +189,10 @@ struct AccountPicker: View {
             }
         }
         // A menu draws images, not views, so every picture is read before it opens.
-        .task(id: profiles.map(ProfilePictureKey.init)) {
+        .task(id: profiles.map { ProfilePictureKey($0, browser: browser) }) {
             var read: [String: NSImage] = [:]
             for profile in profiles {
-                read[profile.directory] = await ProfilePictures.menuImage(ProfilePictureKey(profile), size: Self.side)
+                read[profile.directory] = await ProfilePictures.menuImage(ProfilePictureKey(profile, browser: browser), size: Self.side)
             }
             if !Task.isCancelled { images = read }
         }

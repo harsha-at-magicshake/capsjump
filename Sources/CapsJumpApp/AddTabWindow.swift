@@ -29,13 +29,16 @@ final class AddTabModel: ObservableObject {
     }
     let subject: Subject
     let catalog: ProfileCatalog?
+    /// The browser the tab was read from.
+    let browser: Browser
     private let defaultBrowser: Browser
     private let reads: (Browser) -> CatalogRead
 
-    init(draft: ConfigDraft, subject: Subject, catalog: ProfileCatalog?, profile: ChromeProfile?, defaultBrowser: Browser, reads: @escaping (Browser) -> CatalogRead) {
+    init(draft: ConfigDraft, subject: Subject, catalog: ProfileCatalog?, profile: ChromeProfile?, browser: Browser, defaultBrowser: Browser, reads: @escaping (Browser) -> CatalogRead) {
         self.draft = draft
         self.subject = subject
         self.catalog = catalog
+        self.browser = browser
         self.defaultBrowser = defaultBrowser
         self.reads = reads
         profileDirectory = profile?.directory
@@ -132,7 +135,14 @@ final class AddTabModel: ObservableObject {
     }
 
     private func pickProfile() {
-        guard let catalog, let directory = profileDirectory, let profile = catalog.profile(directory: directory) else { return }
+        guard let catalog else { return }
+        guard let directory = profileDirectory, let profile = catalog.profile(directory: directory) else {
+            updateSite {
+                $0.account = nil
+                $0.profile = nil
+            }
+            return
+        }
         let fields = SiteAccount.fields(for: profile, in: catalog)
         updateSite {
             $0.account = fields.account
@@ -163,7 +173,9 @@ struct AddTabView: View {
                         if let catalog = model.catalog {
                             AccountPicker(
                                 selection: Binding(get: { model.profileDirectory }, set: { directory in afterUpdate { model.profileDirectory = directory } }),
-                                profiles: catalog.profiles
+                                profiles: catalog.profiles,
+                                browser: model.browser,
+                                none: "None (\(model.browser)'s own choice)"
                             )
                         } else {
                             TextField("Account", text: $model.account, prompt: Text("you@work.com"))
@@ -280,7 +292,7 @@ final class AddTab: NSObject, NSWindowDelegate {
             let named = browser == defaultBrowser ? nil : browser.name
             subject = .newSite(id: draft.addSite(SiteSource(index: draft.sites.count, name: name, open: page.absoluteString, browser: named)))
         }
-        let model = AddTabModel(draft: draft, subject: subject, catalog: catalog, profile: profile, defaultBrowser: defaultBrowser, reads: reads)
+        let model = AddTabModel(draft: draft, subject: subject, catalog: catalog, profile: profile, browser: browser, defaultBrowser: defaultBrowser, reads: reads)
         let view = AddTabView(
             model: model,
             onCancel: { [weak self] in self?.window?.close() },

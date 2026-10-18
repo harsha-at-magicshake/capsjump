@@ -72,7 +72,12 @@ final class EditorModel: ObservableObject {
     var onChange: (@MainActor () -> Void)?
 
     let file = ConfigFile()
-    let catalog: ProfileCatalog? = { if case let .read(c) = Inputs.catalog(for: .chrome) { c } else { nil } }()
+    /// The Mac's default browser as the window opened.
+    private(set) var defaultBrowser = Browsers.defaultBrowser()
+    /// The browsers in the table that are installed, for the Browser menu.
+    let browsers = Browsers.installed()
+    /// Each browser's profile list, read once per opening of the window.
+    private var reads: [Browser: CatalogRead] = [:]
     let lookup = Lookup.thisMac
     /// What the file held when read or last saved; nil when there was no file.
     private(set) var expected: String?
@@ -111,6 +116,8 @@ final class EditorModel: ObservableObject {
         query = ""
         SiteIcons.forget()
         ProfilePictures.forget()
+        reads = [:]
+        defaultBrowser = Browsers.defaultBrowser()
         load()
         watch()
     }
@@ -162,7 +169,7 @@ final class EditorModel: ObservableObject {
             savedSource = draft.source
         } else {
             expected = nil
-            draft = ConfigDraft(ConfigReader.read(StarterConfig.render(catalog: catalog)))
+            draft = ConfigDraft(ConfigReader.read(StarterConfig.render(catalog: catalog(for: defaultBrowser))))
             savedSource = ConfigSource()
         }
         state = .editing
@@ -354,8 +361,26 @@ final class EditorModel: ObservableObject {
         edit { $0.updateSite(id, change) }
     }
 
+    /// The browser's profile list, read at most once per opening of the window.
+    func read(_ browser: Browser) -> CatalogRead {
+        if let known = reads[browser] { return known }
+        let fresh = Inputs.catalog(for: browser)
+        reads[browser] = fresh
+        return fresh
+    }
+
+    func catalog(for browser: Browser) -> ProfileCatalog? {
+        if case let .read(catalog) = read(browser) { catalog } else { nil }
+    }
+
+    /// The browser the site row opens in, as a jump would choose it.
+    func browser(of id: Int) -> Browser {
+        guard let site = draft.site(id)?.site else { return defaultBrowser }
+        return Placement.browser(for: site, defaultBrowser: defaultBrowser, catalog: read).browser
+    }
+
     func profile(of id: Int) -> String? {
-        guard let catalog, let site = draft.site(id)?.site else { return nil }
+        guard let catalog = catalog(for: browser(of: id)), let site = draft.site(id)?.site else { return nil }
         if let directory = site.profile { return directory }
         return site.account.flatMap { try? catalog.profile(account: $0) }?.directory
     }
@@ -365,23 +390,48 @@ final class EditorModel: ObservableObject {
     func iconKey(site id: Int) -> SiteIconKey? {
         guard let site = draft.site(id)?.site, let profile = profile(of: id),
               let lookup = SiteIcon.lookup(open: site.open ?? "", match: site.match) else { return nil }
-        return SiteIconKey(profile: profile, lookup: lookup)
+        return SiteIconKey(browser: browser(of: id), profile: profile, lookup: lookup)
     }
 
     /// What the site's account picture is drawn from: the profile it jumps into, resolved
     /// as "Lands in" is; nil when no profile matches, which shows the account's text alone.
     func pictureKey(site id: Int) -> ProfilePictureKey? {
-        guard let catalog, let directory = profile(of: id), let profile = catalog.profile(directory: directory) else { return nil }
-        return ProfilePictureKey(profile)
+        let browser = browser(of: id)
+        guard let catalog = catalog(for: browser), let directory = profile(of: id), let profile = catalog.profile(directory: directory) else { return nil }
+        return ProfilePictureKey(profile, browser: browser)
     }
 
+    /// The account a profile is written as; nil for none, the browser's own choice.
     func setProfile(_ id: Int, _ directory: String?) {
-        guard let catalog, let directory, let profile = catalog.profile(directory: directory) else { return }
+        guard let directory else {
+            edit {
+                $0.updateSite(id) {
+                    $0.account = nil
+                    $0.profile = nil
+                }
+            }
+            return
+        }
+        guard let catalog = catalog(for: browser(of: id)), let profile = catalog.profile(directory: directory) else { return }
         let fields = SiteAccount.fields(for: profile, in: catalog)
         edit {
             $0.updateSite(id) {
                 $0.account = fields.account
                 $0.profile = fields.profile
+            }
+        }
+    }
+
+    /// The browser the site always opens in, nil for the default one. A browser CapsJump
+    /// reads no profiles from takes no account, so changing to one clears it.
+    func setBrowser(_ id: Int, _ browser: Browser?) {
+        edit {
+            $0.updateSite(id) {
+                $0.browser = browser?.name
+                if browser?.support == .plain {
+                    $0.account = nil
+                    $0.profile = nil
+                }
             }
         }
     }
@@ -583,7 +633,14 @@ final class EditorModel: ObservableObject {
     struct SiteForm: Equatable, Sendable {
         let id: Int
         let site: SiteSource
-        /// The profile folder the account picks, when Chrome's list could be read.
+        /// The browser as written; nil for the default one.
+        let browser: Browser?
+        let defaultBrowser: Browser
+        /// The installed browsers the menu offers.
+        let browsers: [Browser]
+        /// The browser the site opens in, as a jump would choose it.
+        let opensIn: Browser
+        /// The profile folder the account picks, when the browser's list could be read.
         let profile: String?
         let profiles: [ChromeProfile]?
         let landing: String?
@@ -603,8 +660,12 @@ final class EditorModel: ObservableObject {
         return SiteForm(
             id: id,
             site: site,
+            browser: site.browser.flatMap(Browser.named),
+            defaultBrowser: defaultBrowser,
+            browsers: browsers,
+            opensIn: browser(of: id),
             profile: profile(of: id),
-            profiles: catalog?.profiles,
+            profiles: catalog(for: browser(of: id))?.profiles,
             landing: landing(site: id),
             keys: draft.keysUsing(id),
             canAddKey: !(site.name ?? "").isEmpty && !draft.freeKeys().isEmpty,
@@ -634,8 +695,8 @@ final class EditorModel: ObservableObject {
 
     /// Where a site lands, once the whole config is valid.
     func landing(site id: Int) -> String? {
-        guard let catalog, let name = draft.site(id)?.site.name, let site = check.config?.site(named: name) else { return nil }
-        return Checkup.site(site, defaultBrowser: .chrome, catalog: { $0 == .chrome ? .read(catalog) : .missing(path: "") }).text.components(separatedBy: " → ").dropFirst().joined(separator: " → ")
+        guard let name = draft.site(id)?.site.name, let site = check.config?.site(named: name) else { return nil }
+        return Checkup.site(site, defaultBrowser: defaultBrowser, catalog: read).text.components(separatedBy: " → ").dropFirst().joined(separator: " → ")
     }
 
     /// Where the app a key names is, as the keys would find it; asked once per app.
