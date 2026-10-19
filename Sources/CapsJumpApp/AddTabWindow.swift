@@ -71,6 +71,11 @@ final class AddTabModel: ObservableObject {
         set { updateSite { $0.open = newValue } }
     }
 
+    /// Why the browser's profiles can't be listed, when they can't.
+    var profilesProblem: String? {
+        catalog == nil ? reads(browser).problem(for: browser) : nil
+    }
+
     /// The account typed by hand, when the browser's profile list can't be read.
     var account: String {
         get { newSite?.account ?? "" }
@@ -193,6 +198,9 @@ struct AddTabView: View {
                             )
                         } else {
                             TextField("Account", text: $model.account, prompt: Text("you@work.com"))
+                            if let problem = model.profilesProblem {
+                                Text(problem).font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                         EditorNotes(
                             note: model.mustChoose ? "CapsJump couldn't tell which profile this tab is in; pick one." : model.landing.map { "Lands in \($0)" },

@@ -653,6 +653,8 @@ final class EditorModel: ObservableObject {
         let accountProblems: [String]
         let pageProblems: [String]
         let matchProblems: [String]
+        /// Why the browser's profiles can't be listed, when they can't.
+        let profilesProblem: String?
     }
 
     func siteForm(_ id: Int) -> SiteForm? {
@@ -675,7 +677,8 @@ final class EditorModel: ObservableObject {
             nameProblems: problems(site: id, .entry, .unknownKey, .name),
             accountProblems: problems(site: id, .browser, .account, .profile),
             pageProblems: problems(site: id, .open),
-            matchProblems: problems(site: id, .match)
+            matchProblems: problems(site: id, .match),
+            profilesProblem: browser(of: id).support == .full ? read(browser(of: id)).problem(for: browser(of: id)) : nil
         )
     }
 

@@ -190,6 +190,9 @@ struct SiteEditor: View, Equatable {
                 )
             } else {
                 TextField("Account", text: Binding(get: { form.site.account ?? "" }, set: { value in model.update(id) { $0.account = value } }), prompt: Text("you@work.com"))
+                if let problem = form.profilesProblem {
+                    Text(problem).font(.caption).foregroundStyle(.secondary)
+                }
             }
             EditorNotes(note: form.landing.map { "Lands in \($0)" }, problems: form.accountProblems)
         }
