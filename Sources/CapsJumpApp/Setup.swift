@@ -14,14 +14,17 @@ import ServiceManagement
 @MainActor
 enum Setup {
     /// True when a permission is known to be missing: Accessibility, Automation of the
-    /// default browser (unknown while it is closed, which does not count), reading its
-    /// profile list, or notifications.
+    /// default browser (unknown while it is closed, which does not count), reading a
+    /// profile list some site needs, or notifications.
     static func somethingMissing(notifier: Notifier) async -> Bool {
         if Permissions.accessibility(prompt: false) != .granted { return true }
         let browser = Browsers.defaultBrowser()
-        if browser.support == .full {
-            if [.denied, .notAsked].contains(await Permissions.automation(of: browser, ask: false)) { return true }
-            if case .refused = Inputs.catalog(for: browser) { return true }
+        if browser.support == .full, [.denied, .notAsked].contains(await Permissions.automation(of: browser, ask: false)) {
+            return true
+        }
+        let config = (try? Inputs.config()) ?? Config(sites: [])
+        for needed in Placement.browsersReadingProfiles(by: config, defaultBrowser: browser) {
+            if case .refused = Inputs.catalog(for: needed) { return true }
         }
         return await notifier.state == .notAsked
     }
@@ -46,6 +49,7 @@ enum Setup {
         let config = try? Inputs.config()
         var automations: [Automation] = []
         let installed = Browsers.installed()
+        let reading = Placement.browsersReadingProfiles(by: config ?? Config(sites: []), defaultBrowser: defaultBrowser)
         for browser in Placement.browsersUsed(by: config ?? Config(sites: []), defaultBrowser: defaultBrowser) where installed.contains(browser) {
             var automation = Automation(browser: browser)
             if browser == defaultBrowser {
@@ -61,7 +65,7 @@ enum Setup {
                 automation.problem = "asked on the first jump, since it isn't running"
                 automation.deferred = true
             }
-            if case .refused = Inputs.catalog(for: browser) { automation.refused = true }
+            if reading.contains(browser), case .refused = Inputs.catalog(for: browser) { automation.refused = true }
             automations.append(automation)
         }
         let notifications = await notifier.request()
