@@ -1,7 +1,10 @@
 // What one jump does, decided from what the site's browser and Accessibility report:
 // focus a tab that already shows the site, or open the site, in its profile when it names
-// one. Only windows paired with an Accessibility title are searched, so a window with no
-// name, as a browser's web-app windows are listed, is never focused. The live side
+// one. A site's profile is known from Accessibility titles, so for a profile only paired
+// windows are searched; with no profile to tell apart (no account, or a browser with one
+// profile), every window scripting lists with a name is, Accessibility's or not (another
+// desktop, full screen). A window with no name, as a browser's web-app windows are listed,
+// is never searched. The live side
 // gathers the facts and carries out the decision; every rule is here.
 
 import Foundation
@@ -21,9 +24,10 @@ public struct WindowTabs: Sendable, Equatable {
 }
 
 public enum Action: Sendable, Equatable {
-    /// Activate tab `tabIndex` (from 1) of Chrome window `windowID`, whose Accessibility
-    /// title is `titles[titleIndex]`.
-    case focus(windowID: String, tabIndex: Int, titleIndex: Int)
+    /// Activate tab `tabIndex` (from 1) of the browser's window `windowID`, whose
+    /// Accessibility title is `titles[titleIndex]`; nil when Accessibility can't see it,
+    /// so the window is raised through scripting alone.
+    case focus(windowID: String, tabIndex: Int, titleIndex: Int?)
     /// Open `url`, in the profile folder `profileDirectory` when given, else wherever
     /// the browser opens a link.
     case open(profileDirectory: String?, url: URL, reason: OpenReason)
@@ -72,14 +76,18 @@ public enum Jump {
         guard destination.target?.canFocus ?? true else { return open(.sharedLabel) }
 
         let pairing = WindowPairing.pair(chrome: windows, titles: titles)
-        let ours = WindowPairing.windows(labelled: destination.windowLabel, chrome: windows, titles: titles, pairing: pairing)
+        let ours: [(window: ChromeWindow, title: Int?)] = if let label = destination.windowLabel {
+            WindowPairing.windows(labelled: label, chrome: windows, titles: titles, pairing: pairing).map { ($0.window, $0.title) }
+        } else {
+            windows.filter { !$0.name.isEmpty }.map { ($0, pairing[$0.id]) }
+        }
         var read: [WindowTabs] = []
         for (window, _) in ours {
             read.append(try tabs(window.id))
         }
         guard let choice = chooseTab(prefixes: destination.site.match, windows: read),
-              let title = ours.first(where: { $0.window.id == choice.windowID })?.title
+              let found = ours.first(where: { $0.window.id == choice.windowID })
         else { return open(.noMatchingTab) }
-        return .focus(windowID: choice.windowID, tabIndex: choice.tabIndex, titleIndex: title)
+        return .focus(windowID: choice.windowID, tabIndex: choice.tabIndex, titleIndex: found.title)
     }
 }

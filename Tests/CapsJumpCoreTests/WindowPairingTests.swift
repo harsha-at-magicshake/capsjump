@@ -239,6 +239,17 @@ private let lee = "lee@initech.com"
         #expect(action == .focus(windowID: "5", tabIndex: 1, titleIndex: 0))
     }
 
+    @Test func noProfileFindsATabAccessibilityCantSee() throws {
+        // Window 9 is on another desktop: scripting lists it, Accessibility doesn't, so it
+        // has no title to pair with; it is focused through scripting alone.
+        let windows = chrome + [ChromeWindow(id: "9", name: "Claude")]
+        let action = try Jump.decide(destination: anyProfile(), running: true, windows: windows, titles: titles, tabs: tabs(everyWindow.merging([
+            "2": WindowTabs(windowID: "2", urls: ["https://docs.x"], activeIndex: 1),
+            "9": WindowTabs(windowID: "9", urls: ["https://claude.ai/chat/9"], activeIndex: 1),
+        ]) { $1 }))
+        #expect(action == .focus(windowID: "9", tabIndex: 1, titleIndex: nil))
+    }
+
     @Test func aWebAppWindowIsNeverFocused() throws {
         // Brave lists a web app's window with no name, as measured; its tab is the site's.
         let windows = [ChromeWindow(id: "7", name: ""), ChromeWindow(id: "8", name: "Docs")]

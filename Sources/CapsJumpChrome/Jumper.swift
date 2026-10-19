@@ -161,7 +161,7 @@ public final class Jumper {
             guard let scripting, let app else { throw .windowGone(browser.displayName) }
             try scripting.focus(windowID: windowID, tabIndex: tabIndex)
             app.activate()
-            ChromeAccessibility.raise(axWindows[titleIndex].element)
+            if let titleIndex { ChromeAccessibility.raise(axWindows[titleIndex].element) }
             return .focused(site: destination.site.name, browser: browser.displayName, windowID: windowID, tabIndex: tabIndex)
         case let .open(profileDirectory, url, reason):
             try await ChromeLauncher.open(url, in: browser, profileDirectory: profileDirectory)
