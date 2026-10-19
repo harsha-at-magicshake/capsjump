@@ -42,6 +42,12 @@ func site(_ name: String = "s", account: String? = nil, profile: String? = nil, 
         #expect(c.profile(directory: "Profile 26")?.windowLabel == "kim@initech.com")
     }
 
+    @Test func aBraveTitleNamesItsProfile() throws {
+        let brave = try ProfileCatalog.parse(localState: Data(#"{"profile": {"info_cache": {"Default": {"name": "Work"}, "Profile 5": {"name": "Parents"}}}}"#.utf8))
+        #expect(brave.profile(forTitle: "Inbox (925) - Gmail - Brave - Parents")?.directory == "Profile 5")
+        #expect(brave.profile(forTitle: "Sign in is not complete - Brave - Work")?.directory == "Default")
+    }
+
     @Test func refusesBadLocalState() {
         #expect(throws: ProfileCatalog.ParseError.notJSON) { try ProfileCatalog.parse(localState: Data("nope".utf8)) }
         #expect(throws: ProfileCatalog.ParseError.noProfiles) { try ProfileCatalog.parse(localState: Data("{}".utf8)) }

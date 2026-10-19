@@ -142,7 +142,7 @@ public struct ProfileCatalog: Sendable, Equatable {
     public func profile(forTitle title: String?) -> ChromeProfile? {
         if profiles.count == 1 { return profiles[0] }
         guard let title else { return nil }
-        let fitting = profiles.filter { title.hasSuffix(WindowPairing.labelSuffix($0.windowLabel)) }
+        let fitting = profiles.filter { WindowPairing.title(title, endsWithLabel: $0.windowLabel) }
         guard let longest = fitting.max(by: { $0.windowLabel.count < $1.windowLabel.count }),
               sharingLabel(with: longest).isEmpty
         else { return nil }

@@ -4,7 +4,8 @@
 // a window can be focused only once the two are paired.
 //
 // Pairing is by title. Chrome shortens a long window name in the middle with "…", while
-// the Accessibility title is whole: `<page title> - Google Chrome – <profile label>`. A
+// the Accessibility title is whole: `<page title> - Google Chrome – <profile label>`, or in
+// Brave `<page title> - Brave - <profile label>`, a plain hyphen where Chrome has "–". A
 // Chrome window is compatible with a title that starts with its name's text before the
 // "…", capped at 20 characters; a window with no name is compatible with none. Windows
 // and titles that are compatible, directly or through each other, form a group, and each
@@ -39,9 +40,10 @@ public enum WindowPairing {
         return String(head.prefix(prefixCap))
     }
 
-    /// The ending that marks a title as one of the profile's windows.
-    public static func labelSuffix(_ label: String) -> String {
-        "\u{2013} \(label)"
+    /// Whether the title ends in the profile's label, as Chrome writes it (`– <label>`) or
+    /// as Brave does (` - <label>`).
+    public static func title(_ title: String, endsWithLabel label: String) -> Bool {
+        title.hasSuffix("\u{2013} \(label)") || title.hasSuffix(" - \(label)")
     }
 
     /// For each paired Chrome window id (Chrome reports ids as text), the index of its title in `titles`.
@@ -87,9 +89,8 @@ public enum WindowPairing {
     /// The profile's paired windows, front to back, each with its title's index; every
     /// paired window when `label` is nil.
     public static func windows(labelled label: String?, chrome: [ChromeWindow], titles: [String], pairing: [String: Int]) -> [(window: ChromeWindow, title: Int)] {
-        let suffix = label.map(labelSuffix)
-        return chrome.compactMap { window in
-            guard let t = pairing[window.id], suffix.map(titles[t].hasSuffix) ?? true else { return nil }
+        chrome.compactMap { window in
+            guard let t = pairing[window.id], label.map({ title(titles[t], endsWithLabel: $0) }) ?? true else { return nil }
             return (window, t)
         }
     }
