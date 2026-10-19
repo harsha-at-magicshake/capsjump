@@ -66,12 +66,17 @@ public enum Inputs {
         }
     }
 
-    /// The browser's profile list, or why it can't be used: missing, refused by macOS, or
-    /// not a profile list.
-    public static func catalog(for browser: Browser, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> CatalogRead {
+    /// The browser's profile list, or why it can't be used: not installed (its folder may
+    /// outlive it), missing, refused by macOS, or not a profile list.
+    public static func catalog(
+        for browser: Browser,
+        home: URL = FileManager.default.homeDirectoryForCurrentUser,
+        installed: (Browser) -> Bool = { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0.bundleID) != nil }
+    ) -> CatalogRead {
         guard let url = browser.localState(home: home) else {
             return .unreadable("\(browser) has no profiles CapsJump can read")
         }
+        guard installed(browser) else { return .notInstalled }
         let data: Data
         do {
             data = try Data(contentsOf: url)

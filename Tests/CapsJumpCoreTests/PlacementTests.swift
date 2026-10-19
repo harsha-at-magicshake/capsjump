@@ -81,6 +81,22 @@ private func place(_ site: Site, default browser: Browser, _ reads: [Browser: Ca
         #expect(!noChrome.fellBack)
     }
 
+    @Test func aFolderAloneSkipsAChromeThatIsntInstalled() throws {
+        // Chrome's folder outlives Chrome: its list may still be on disk with the app gone.
+        let landed = try place(site(profile: "Default"), default: .brave, [.brave: brave, .chrome: .notInstalled])
+        #expect(landed.browser == .brave)
+    }
+
+    @Test func aChromeThatIsntInstalledSaysSo() {
+        let error = #expect(throws: PlaceError.self) {
+            try place(site(account: "kim@initech.com"), default: .brave, [.brave: brave, .chrome: .notInstalled])
+        }
+        #expect(error?.attempts.map(\.reason) == [
+            "Brave: no profile has the account `kim@initech.com`; this Mac has: Work, Home",
+            "Google Chrome is not installed",
+        ])
+    }
+
     @Test func aNamedBrowserNeverFallsBack() {
         let error = #expect(throws: PlaceError.self) {
             try place(site(account: "alex@acme.dev", browser: .brave), default: .brave, [.brave: brave, .chrome: chrome])

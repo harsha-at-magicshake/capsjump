@@ -17,6 +17,8 @@ public enum CatalogRead: Sendable, Equatable {
     /// macOS refused to let CapsJump read it.
     case refused(path: String)
     case unreadable(String)
+    /// The browser's folder may outlive it; its app is gone.
+    case notInstalled
 
     /// Why the list can't be used, worded for the person; nil when it was read.
     public func problem(for browser: Browser) -> String? {
@@ -29,6 +31,8 @@ public enum CatalogRead: Sendable, Equatable {
             "macOS won't let CapsJump read \(browser)'s profile list at \(path); turn CapsJump on under System Settings › Privacy & Security › Full Disk Access"
         case let .unreadable(reason):
             reason
+        case .notInstalled:
+            "\(browser) is not installed"
         }
     }
 }

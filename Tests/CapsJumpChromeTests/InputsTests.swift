@@ -8,6 +8,9 @@ import Testing
 @testable import CapsJumpChrome
 
 @Suite struct InputsTests {
+    /// Every browser counts as installed, whatever this Mac has.
+    private static func everyBrowser(_: Browser) -> Bool { true }
+
     private static func home() -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent("inputs-\(UUID().uuidString)")
     }
@@ -21,13 +24,13 @@ import Testing
 
     @Test func aMissingListSaysWhere() {
         let home = Self.home()
-        #expect(Inputs.catalog(for: .brave, home: home) == .missing(path: home.path + "/Library/Application Support/BraveSoftware/Brave-Browser/Local State"))
+        #expect(Inputs.catalog(for: .brave, home: home, installed: Self.everyBrowser) == .missing(path: home.path + "/Library/Application Support/BraveSoftware/Brave-Browser/Local State"))
     }
 
     @Test func aGoodListIsRead() throws {
         let home = Self.home()
         _ = try Self.write(#"{"profile": {"info_cache": {"Default": {"name": "Work"}}}}"#, for: .brave, home: home)
-        guard case let .read(catalog) = Inputs.catalog(for: .brave, home: home) else {
+        guard case let .read(catalog) = Inputs.catalog(for: .brave, home: home, installed: Self.everyBrowser) else {
             Issue.record("not read")
             return
         }
@@ -37,7 +40,7 @@ import Testing
     @Test func aListThatIsNoProfileListIsUnreadable() throws {
         let home = Self.home()
         let file = try Self.write("{}", for: .brave, home: home)
-        #expect(Inputs.catalog(for: .brave, home: home) == .unreadable("Brave's profile list at \(file.path) can't be used: it lists no profiles"))
+        #expect(Inputs.catalog(for: .brave, home: home, installed: Self.everyBrowser) == .unreadable("Brave's profile list at \(file.path) can't be used: it lists no profiles"))
     }
 
     @Test func aRefusedListSaysSo() throws {
@@ -45,7 +48,13 @@ import Testing
         let file = try Self.write("{}", for: .chrome, home: home)
         try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: file.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path) }
-        #expect(Inputs.catalog(for: .chrome, home: home) == .refused(path: file.path))
+        #expect(Inputs.catalog(for: .chrome, home: home, installed: Self.everyBrowser) == .refused(path: file.path))
+    }
+
+    @Test func aBrowserThatIsntInstalledHasNoList() throws {
+        let home = Self.home()
+        _ = try Self.write(#"{"profile": {"info_cache": {"Default": {"name": "Work"}}}}"#, for: .chrome, home: home)
+        #expect(Inputs.catalog(for: .chrome, home: home, installed: { _ in false }) == .notInstalled)
     }
 
     @Test func aPlainBrowserHasNoList() {

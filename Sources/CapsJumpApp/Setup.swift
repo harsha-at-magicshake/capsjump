@@ -45,7 +45,8 @@ enum Setup {
         let defaultBrowser = Browsers.defaultBrowser()
         let config = try? Inputs.config()
         var automations: [Automation] = []
-        for browser in Placement.browsersUsed(by: config ?? Config(sites: []), defaultBrowser: defaultBrowser) {
+        let installed = Browsers.installed()
+        for browser in Placement.browsersUsed(by: config ?? Config(sites: []), defaultBrowser: defaultBrowser) where installed.contains(browser) {
             var automation = Automation(browser: browser)
             if browser == defaultBrowser {
                 do {
