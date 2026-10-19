@@ -1,4 +1,8 @@
 // Failures reach the person as notifications, so a key press that did nothing says why.
+// One that a missing permission caused says "click to finish setting up", and clicking it
+// opens the Welcome window; any other click just brings the notification's app forward.
+// While the Welcome window is open such a notification isn't sent: the window already
+// shows that step, and two asks at once are one too many.
 // Notifications need the app bundle; run unbundled (during development) they are skipped
 // and the unified log still carries every failure.
 
@@ -8,6 +12,11 @@ import UserNotifications
 
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
+    /// Opens the Welcome window, and says whether it is open; the app sets both at launch.
+    var openWelcome: (@MainActor () -> Void)?
+    var welcomeIsOpen: (@MainActor () -> Bool)?
+    nonisolated private static let opensWelcomeKey = "opensWelcome"
+
     private var center: UNUserNotificationCenter? {
         Bundle.main.bundleIdentifier == nil ? nil : UNUserNotificationCenter.current()
     }
@@ -34,11 +43,16 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         return await state
     }
 
-    func post(_ message: String) {
+    /// `opensWelcome` makes a click open the Welcome window.
+    func post(_ message: String, opensWelcome: Bool = false) {
         guard let center else { return }
+        if opensWelcome, welcomeIsOpen?() == true { return }
         let content = UNMutableNotificationContent()
         content.title = "CapsJump"
         content.body = message
+        if opensWelcome {
+            content.userInfo = [Self.opensWelcomeKey: true]
+        }
         center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
     }
 
@@ -48,5 +62,15 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .sound]
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+              response.notification.request.content.userInfo[Self.opensWelcomeKey] as? Bool == true
+        else { return }
+        await MainActor.run { openWelcome?() }
     }
 }

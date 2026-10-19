@@ -1,10 +1,12 @@
-// Asks for all the permissions at once, attributed to CapsJump itself, registers the app to
-// start at login so the keys are there from the moment the Mac starts, then shows one
-// alert with each one's state. Automation is granted per browser, and can be asked for
-// only while that browser runs: setup starts the default browser when it is one CapsJump
-// scripts, and asks for each other browser the config may use only if it is already
-// running; the rest are asked for on their first jump. When macOS refuses to let CapsJump
-// read a browser's profile list, the alert says so and offers the setting that allows it.
+// The permissions CapsJump uses, read so the Welcome window can tick each the moment it is
+// granted. The browser's and the notifications' are asked on their own when the person
+// presses their buttons, attributed to CapsJump itself; the browser starts only for its
+// button, since Automation can be asked for only while it runs. The browser is the one sites
+// open in: the default browser when CapsJump scripts it, else Chrome, where sites with an
+// account fall back. Accessibility is never asked here: macOS shows its own request whenever
+// CapsJump reads it without access (see Permissions), and that one request is the only ask.
+// When macOS won't let CapsJump read the browser's profile list, the window says so and
+// links Full Disk Access. The login item is the Welcome window's switch.
 
 import AppKit
 import CapsJumpChrome
@@ -13,130 +15,52 @@ import ServiceManagement
 
 @MainActor
 enum Setup {
-    /// True when a permission is known to be missing: Accessibility, Automation of the
-    /// default browser (unknown while it is closed, which does not count), reading a
-    /// profile list some site needs, or notifications.
-    static func somethingMissing(notifier: Notifier) async -> Bool {
-        if Permissions.accessibility(prompt: false) != .granted { return true }
-        let browser = Browsers.defaultBrowser()
-        if browser.support == .full, [.denied, .notAsked].contains(await Permissions.automation(of: browser, ask: false)) {
-            return true
-        }
-        let config = (try? Inputs.config()) ?? Config(sites: [])
-        for needed in Placement.browsersReadingProfiles(by: config, defaultBrowser: browser) {
-            if case .refused = Inputs.catalog(for: needed) { return true }
-        }
-        return await notifier.state == .notAsked
+    /// The System Settings panes the window links to.
+    enum Pane: String {
+        case accessibility = "com.apple.preference.security?Privacy_Accessibility"
+        case automation = "com.apple.preference.security?Privacy_Automation"
+        case fullDiskAccess = "com.apple.preference.security?Privacy_AllFiles"
+        case notifications = "com.apple.preference.notifications"
+        case loginItems = "com.apple.LoginItems-Settings.extension"
     }
 
-    /// One browser's line: its Automation state, or why it wasn't asked.
-    private struct Automation {
-        let browser: Browser
-        var state: PermissionState = .unknown
-        var problem: String?
-        /// Not running, so asked for on its first jump instead.
-        var deferred = false
-        var refused = false
-
-        var line: String {
-            "Automation of \(browser): \(problem ?? state.rawValue)"
-        }
+    static var hasAccessibility: Bool {
+        Permissions.accessibility == .granted
     }
 
-    static func run(notifier: Notifier) async {
-        let accessibility = Permissions.accessibility(prompt: true)
-        let defaultBrowser = Browsers.defaultBrowser()
-        let config = try? Inputs.config()
-        var automations: [Automation] = []
+    /// The browser the window asks about; nil when neither the default browser (one CapsJump
+    /// scripts) nor Chrome is installed.
+    static var browser: Browser? {
         let installed = Browsers.installed()
-        let reading = Placement.browsersReadingProfiles(by: config ?? Config(sites: []), defaultBrowser: defaultBrowser)
-        for browser in Placement.browsersUsed(by: config ?? Config(sites: []), defaultBrowser: defaultBrowser) where installed.contains(browser) {
-            var automation = Automation(browser: browser)
-            if browser == defaultBrowser {
-                do {
-                    _ = try await ChromeLauncher.start(browser)
-                    automation.state = await Permissions.automation(of: browser, ask: true)
-                } catch {
-                    automation.problem = error.description
-                }
-            } else if ChromeLauncher.running(browser) != nil {
-                automation.state = await Permissions.automation(of: browser, ask: true)
-            } else {
-                automation.problem = "asked on the first jump, since it isn't running"
-                automation.deferred = true
-            }
-            if reading.contains(browser), case .refused = Inputs.catalog(for: browser) { automation.refused = true }
-            automations.append(automation)
-        }
-        let notifications = await notifier.request()
-        let login = startAtLogin()
-        show(accessibility: accessibility, automations: automations, notifications: notifications, login: login)
+        let preferred = Browsers.defaultBrowser()
+        if preferred.support == .full, installed.contains(preferred) { return preferred }
+        return installed.contains(.chrome) ? .chrome : nil
     }
 
-    /// Registers the app as a login item; turned off again from the menu bar, or in System
-    /// Settings › General › Login Items & Extensions.
-    private static func startAtLogin() -> SMAppService.Status {
-        LoginItem.set(true)
-        return SMAppService.mainApp.status
+    /// Automation of the browser as it stands; unknown while it is closed.
+    static func access(of browser: Browser) async -> PermissionState {
+        guard ChromeLauncher.running(browser) != nil else { return .unknown }
+        return await Permissions.automation(of: browser, ask: false)
     }
 
-    private static func show(
-        accessibility: PermissionState,
-        automations: [Automation],
-        notifications: PermissionState,
-        login: SMAppService.Status
-    ) {
-        let alert = NSAlert()
-        let denied = automations.filter { $0.state == .denied }
-        let refused = automations.filter(\.refused)
-        let ready = accessibility == .granted && denied.isEmpty && refused.isEmpty
-            && automations.allSatisfy { $0.state == .granted || $0.deferred }
-        alert.messageText = ready ? "CapsJump is ready" : "CapsJump needs a permission"
-        var lines = ["Accessibility: \(accessibility.rawValue)"]
-        lines += automations.map(\.line)
-        lines += refused.map { "Reading \($0.browser)'s profiles: refused by macOS" }
-        lines += [
-            "Notifications: \(notifications.rawValue)",
-            "Starts at login: \(login == .enabled ? "yes" : login == .requiresApproval ? "waiting for approval" : "no")",
-        ]
-        if accessibility != .granted {
-            lines.append("\nTurn CapsJump on under Privacy & Security › Accessibility.")
-        }
-        if !denied.isEmpty {
-            let names = denied.map(\.browser.displayName).joined(separator: " and ")
-            lines.append("\nTurn on \(names) under CapsJump in Privacy & Security › Automation.")
-        }
-        if !refused.isEmpty {
-            lines.append("\nTurn CapsJump on under Privacy & Security › Full Disk Access, so it can read which profiles your browsers have.")
-        }
-        if login == .requiresApproval {
-            lines.append("\nTurn CapsJump on under General › Login Items & Extensions.")
-        }
-        if !ready {
-            lines.append("\nThen run `capsjump setup` again to confirm.")
-        }
-        alert.informativeText = lines.joined(separator: "\n")
+    /// Starts the browser when it is closed, then asks for Automation of it.
+    static func ask(for browser: Browser) async throws(ChromeError) -> PermissionState {
+        _ = try await ChromeLauncher.start(browser)
+        return await Permissions.automation(of: browser, ask: true)
+    }
 
-        var settings: [String] = []
-        if accessibility != .granted {
-            alert.addButton(withTitle: "Open Accessibility Settings")
-            settings.append("Privacy_Accessibility")
-        }
-        if !denied.isEmpty {
-            alert.addButton(withTitle: "Open Automation Settings")
-            settings.append("Privacy_Automation")
-        }
-        if !refused.isEmpty {
-            alert.addButton(withTitle: "Open Full Disk Access Settings")
-            settings.append("Privacy_AllFiles")
-        }
-        alert.addButton(withTitle: "Done")
+    /// Whether macOS refuses CapsJump the browser's profile list.
+    static func profilesRefused(_ browser: Browser) -> Bool {
+        if case .refused = Inputs.catalog(for: browser) { true } else { false }
+    }
 
-        NSApp.activate(ignoringOtherApps: true)
-        let response = alert.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
-        if settings.indices.contains(response),
-           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(settings[response])") {
-            NSWorkspace.shared.open(url)
-        }
+    /// The browser's profiles, for the starter file's example site; nil when unreadable.
+    static func catalog(_ browser: Browser) -> ProfileCatalog? {
+        if case let .read(catalog) = Inputs.catalog(for: browser) { catalog } else { nil }
+    }
+
+    static func open(_ pane: Pane) {
+        guard let url = URL(string: "x-apple.systempreferences:\(pane.rawValue)") else { return }
+        NSWorkspace.shared.open(url)
     }
 }

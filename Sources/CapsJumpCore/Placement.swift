@@ -102,31 +102,6 @@ public enum Placement {
         throw PlaceError(attempts: attempts)
     }
 
-    /// The browsers with full support a jump may script: the default, each one a site
-    /// names, and Chrome when a site with an account or folder may fall back to it. The
-    /// default first, then in the table's order.
-    public static func browsersUsed(by config: Config, defaultBrowser: Browser) -> [Browser] {
-        var used = Set(config.sites.compactMap(\.browser))
-        if config.sites.contains(where: { $0.browser == nil && ($0.account != nil || $0.profile != nil) }) {
-            used.insert(.chrome)
-        }
-        let rest = Browser.known.filter { used.contains($0) && $0 != defaultBrowser }
-        return ([defaultBrowser] + rest).filter { $0.support == .full }
-    }
-
-    /// The browsers whose profile list some site looks an account or folder up in, in the
-    /// order sites try them; a site with neither never reads one.
-    public static func browsersReadingProfiles(by config: Config, defaultBrowser: Browser) -> [Browser] {
-        var found: [Browser] = []
-        for site in config.sites where site.account != nil || site.profile != nil {
-            for browser in tries(named: site.browser, account: site.account, profile: site.profile, defaultBrowser: defaultBrowser)
-            where browser.support == .full && !found.contains(browser) {
-                found.append(browser)
-            }
-        }
-        return found
-    }
-
     /// The browser `place` would choose for a row as written, which may not be valid yet;
     /// the first one tried when none would take it.
     public static func browser(for site: SiteSource, defaultBrowser: Browser, catalog: (Browser) -> CatalogRead) -> (browser: Browser, fellBack: Bool) {

@@ -1,8 +1,10 @@
-// The capsjump command: writes and checks the config, lists a browser's profiles, and
-// hands links to CapsJump.app. It never talks to a browser itself: the app holds the
+// The capsjump command: writes, checks and tidies the config, lists a browser's profiles,
+// and hands links to CapsJump.app. It never talks to a browser itself: the app holds the
 // permissions, so `jump` and `setup` go through macOS's link handling to it. `check` also
 // reads whether the app runs and whether Caps Lock is mapped, the two things the keys need;
 // `pause` and `resume` reach the running app by link, and `quit` asks it to quit.
+// `profiles --json` and `check --json` are for scripts and coding agents: what a site in
+// each profile writes, and what is wrong in the file apart from what is wrong with the app.
 
 import AppKit
 import ArgumentParser
@@ -18,12 +20,12 @@ struct CapsJump: ParsableCommand {
         abstract: "Shortcuts built around Caps Lock: apps, sites in the right browser and account, windows and links.",
         discussion: "Keys and sites live in ~/.capsjump.yaml. Hold Caps Lock and press a key; each site is also the link capsjump://<name>.",
         version: Version.current,
-        subcommands: [Init.self, Profiles.self, Check.self, Jump.self, Setup.self, PauseCommand.self, ResumeCommand.self, QuitCommand.self, Logs.self, VersionCommand.self]
+        subcommands: [Init.self, Profiles.self, Check.self, Tidy.self, Jump.self, Setup.self, PauseCommand.self, ResumeCommand.self, QuitCommand.self, Logs.self, VersionCommand.self]
     )
 }
 
 struct Init: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "Write a starter ~/.capsjump.yaml for this Mac's default browser.")
+    static let configuration = CommandConfiguration(abstract: "Write a starter ~/.capsjump.yaml: the window keys, and an example site in the default browser's first profile.")
 
     func run() throws {
         let path = Paths.config()
@@ -37,7 +39,7 @@ struct Init: ParsableCommand {
         try ConfigFile(url: path).write(StarterConfig.config(catalog: catalog), replacing: nil)
         print("wrote \(path.path)")
         if catalog == nil, let problem = read.problem(for: browser) {
-            print("note: \(browser)'s profiles could not be read (\(problem)), so the example site has no account and opens in \(browser)'s own choice of profile")
+            print("note: \(browser)'s profiles could not be read (\(problem)), so the file has the window keys and no example site; `capsjump profiles` lists the accounts once \(browser) can be read")
         }
         print("next: edit it, then run `capsjump check`")
     }
@@ -48,6 +50,9 @@ struct Profiles: ParsableCommand {
 
     @Argument(help: "chrome, brave, edge, vivaldi or chromium; the default browser when left out.")
     var browser: String?
+
+    @Flag(help: "Print JSON: each profile's folder, account (null when nobody is signed in), name, window label, the folders sharing that label, and the fields a site in it writes.")
+    var json = false
 
     func run() throws {
         let defaultBrowser = Browsers.defaultBrowser()
@@ -68,6 +73,10 @@ struct Profiles: ParsableCommand {
         guard case let .read(catalog) = read else {
             throw ValidationError(read.problem(for: chosen) ?? "")
         }
+        if json {
+            print(try JSONOutput.render(catalog.listing))
+            return
+        }
         print("\(chosen)" + (chosen == defaultBrowser ? " (default browser)" : ""))
         let rows = catalog.profiles.map { profile in
             [profile.directory, profile.email.isEmpty ? "(not signed in)" : profile.email, profile.name,
@@ -83,22 +92,46 @@ struct Profiles: ParsableCommand {
 struct Check: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Validate the config, resolve every site and key, and confirm CapsJump.app runs them.")
 
+    @Flag(help: "Print JSON: the file read (symlinks followed), ok, and the findings about the file apart from those about the app.")
+    var json = false
+
     func run() throws {
         let configPath = Paths.config()
-        var findings = Checkup.run(
-            configText: try? String(contentsOf: configPath, encoding: .utf8),
+        let configText = try? String(contentsOf: configPath, encoding: .utf8)
+        var file = Checkup.run(
+            configText: configText,
             configPath: configPath.path,
             defaultBrowser: Browsers.defaultBrowser(),
             catalog: Inputs.catalogs(),
             lookup: Lookup.thisMac
         )
-        findings.append(LinkHandler.finding())
-        findings += KeyState.findings(config: try? Inputs.config(), running: KeyState.appIsRunning)
-        for finding in findings {
-            print("\(finding.level.rawValue.padding(toLength: 8, withPad: " ", startingAt: 0))\(finding.text)")
+        if let layout = Checkup.layout(configText: configText, configPath: configPath.path) {
+            file.append(layout)
         }
-        if findings.contains(where: { $0.level == .problem }) {
+        let app = [LinkHandler.finding()] + KeyState.findings(config: try? Inputs.config(), running: KeyState.appIsRunning)
+        let report = CheckReport(config: ConfigFile.followingLinks(configPath).path, file: file, app: app)
+        if json {
+            print(try JSONOutput.render(report))
+        } else {
+            for finding in file + app {
+                print("\(finding.level.rawValue.padding(toLength: 8, withPad: " ", startingAt: 0))\(finding.text)")
+            }
+        }
+        if !report.ok {
             throw ExitCode.failure
+        }
+    }
+}
+
+struct Tidy: ParsableCommand {
+    static let configuration = CommandConfiguration(abstract: "Rewrite ~/.capsjump.yaml in the layout CapsJump writes, as Edit Config… saves it. Comments don't survive.")
+
+    func run() throws {
+        let file = ConfigFile()
+        if try file.tidy() {
+            print("tidied \(file.url.path)")
+        } else {
+            print("\(file.url.path) is already in CapsJump's layout")
         }
     }
 }
@@ -122,11 +155,11 @@ struct Jump: ParsableCommand {
 }
 
 struct Setup: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "Ask macOS for CapsJump's permissions (Accessibility, Automation of your browsers, notifications).")
+    static let configuration = CommandConfiguration(abstract: "Open CapsJump's Welcome window, which asks for its permissions one at a time and turns on its first keys.")
 
     func run() throws {
         try LinkHandler.open(Link.setupURL)
-        print("CapsJump is asking for its permissions; its alert lists each one's state.")
+        print("CapsJump's Welcome window is open; each step there ticks itself when it's done.")
     }
 }
 

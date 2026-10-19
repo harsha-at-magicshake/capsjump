@@ -1,4 +1,4 @@
-# Sites in any browser (CapsJump 0.8.0)
+# Sites in any browser (CapsJump 0.10.0)
 
 This document goes with the pull request that takes CapsJump's sites beyond Google Chrome.
 It is written so the maintainer, or an agent reviewing on the maintainer's behalf, can
@@ -8,9 +8,11 @@ decision taken and why, what was and wasn't verified, the known open items, and 
 later.
 
 - Branch: `feat/sites-in-any-browser` on the fork `harsha-at-magicshake/capsjump`
-- Base: `a64c93a` (CapsJump 0.7.1, "CapsJump moves to whysosuresh")
-- 18 commits, 58 files, about +1,570 / −430 lines; version bumped to `0.8.0`
-- Tests: 217 Swift Testing tests (8 + 193 + 16 across the three test targets), all green
+- Base: upstream `main` at `6785b46` (CapsJump 0.9.0, #41), merged into the branch. The
+  work started from `a64c93a` (0.7.1); §10 lists how each conflict with upstream was
+  resolved.
+- Version bumped to `0.10.0`
+- Tests: 237 Swift Testing tests (13 + 208 + 16 across the three test targets), all green
   on macOS 27.0.1 with Swift 6.4
 
 ---
@@ -48,7 +50,7 @@ After it:
   account and no `browser:` tries the default browser and then Chrome (the "Chrome
   fallback").
 - Add Current Tab, the editor, `capsjump check`, `capsjump profiles`, `capsjump init`
-  and Setup all understand browsers.
+  the Welcome window and the coding-agent skill all understand browsers.
 
 The person who asked for this uses Brave as their main browser, with several Brave
 profiles and Brave web apps. Everything was verified live in Brave on macOS 27. Chrome,
@@ -87,7 +89,7 @@ keys:
   and also sets `account:` or `profile:` is a config problem, worded for the person:
   "Safari has no profiles CapsJump can read; remove `account` and `profile`, or pick a
   browser that has them".
-- A file that uses `browser:`, or has a site with no account, needs CapsJump 0.8.0. An
+- A file that uses `browser:`, or has a site with no account, needs CapsJump 0.10.0. An
   older CapsJump refuses the file and keeps its last keys (documented in the README).
 
 ### 2.2 Which browser and profile a site lands in
@@ -168,19 +170,23 @@ under System Settings › Privacy & Security › Full Disk Access; Google Chrome
 - `capsjump profiles [browser]` lists a browser's profiles: the default browser's, or
   the one named (`capsjump profiles brave`). It refuses an unknown name, a browser with
   no profiles, or a list macOS refuses, each with its reason.
-- `capsjump init` writes the starter for the default browser. When it can't read
-  profiles, the example site has **no account**, instead of the old placeholder
-  `you@example.com`.
+- `capsjump init` writes the starter for the default browser's first profile. When it
+  can't read profiles, the file has the window keys and no example site (upstream 0.9.0's
+  rule, kept).
 
-### 2.7 Setup and permissions
+### 2.7 The Welcome window and permissions
 
-- Automation is granted per browser. Setup starts the **default browser** (when CapsJump
-  scripts it) and asks for it. Any other browser a site may use (named in `browser:`, or
-  Chrome for the fallback) is asked for if it's running, and otherwise on its first
-  jump. Browsers that aren't installed are skipped.
-- When macOS refuses to let CapsJump read a browser's profile list, and some site needs
-  that list, Setup says so and offers **Open Full Disk Access Settings**. Sites with no
-  account never need it, so they never trigger it.
+- Upstream 0.9.0's Welcome window had an optional **Chrome accounts** row. It is now a row
+  for the browser sites open in, named after it (**Brave accounts** on the test Mac). That
+  is the default browser when CapsJump scripts it, else Chrome, where sites with an
+  account fall back. The row is shown when that browser is installed. **Allow…** starts
+  the browser and asks for Automation of it.
+- Any other browser a site names (`browser: chrome` with Brave as default, say) is asked
+  for by macOS the first time a jump scripts it.
+- When macOS refuses CapsJump that browser's profile list, the row says so ("macOS won't
+  let CapsJump read which profiles Brave has; turn CapsJump on under Full Disk Access")
+  and offers **Open Full Disk Access Settings**. Like every optional row, it never blocks
+  setting up, and sites with no account never need the list.
 - The Automation usage string now reads "CapsJump reads your browser's tabs to bring
   forward the one a link names."
 
@@ -212,7 +218,7 @@ only gather facts and carry out decisions, as CapsJump already did for Chrome.
 | File | Change |
 |---|---|
 | `Browser.swift` (new) | The browser table: `name` (config name, nil for an unknown default), `bundleID`, `displayName`, `dataFolder` (under `~/Library/Application Support`; nil = plain). `support` is `.full` exactly when there is a data folder, so a browser can't be "full" without a profile list. `named(_:)` is case-insensitive. `app(bundleID:displayName:)` maps the default browser to its row, an unknown one to a plain browser, and nil to Chrome. `localState(home:)`, `profileFolder(_:home:)` and `data(home:)` give the paths. |
-| `Placement.swift` (new) | `CatalogRead` (`.read`, `.missing`, `.refused`, `.unreadable`, `.notInstalled`), each with its wording through `problem(for:)`. `Destination` (site, browser, optional `Target`, `windowLabel`, `fellBack`, `isDefault`). `PlaceError` with one `Attempt` per browser tried. `Placement.place(_:defaultBrowser:catalog:)` implements §2.2. `Placement.browser(for: SiteSource …)` gives the editor the browser for a row that may not be valid yet. `browsersUsed(by:defaultBrowser:)` lists the browsers a jump may script, for Setup. `browsersReadingProfiles(by:defaultBrowser:)` lists the browsers whose list some site needs, for Setup's Full Disk Access check. Every profile list comes in through a `catalog` closure, so Core never touches the disk. |
+| `Placement.swift` (new) | `CatalogRead` (`.read`, `.missing`, `.refused`, `.unreadable`, `.notInstalled`), each with its wording through `problem(for:)`. `Destination` (site, browser, optional `Target`, `windowLabel`, `fellBack`, `isDefault`). `PlaceError` with one `Attempt` per browser tried. `Placement.place(_:defaultBrowser:catalog:)` implements §2.2. `Placement.browser(for: SiteSource …)` gives the editor the browser for a row that may not be valid yet. Every profile list comes in through a `catalog` closure, so Core never touches the disk. |
 | `Jump.swift` | `decide(destination:running:windows:titles:tabs:)` replaces `decide(target:chromeRunning:…)`. `Action.open(profileDirectory: String?, …)`, and `Action.focus(… titleIndex: Int?)` (nil = raise through scripting alone). `OpenReason` gains `.plain`; `.chromeNotRunning` became `.notRunning` ("the browser is not running"). |
 | `WindowPairing.swift` | `windows(labelled: String?)`: nil means every paired window. `title(_:endsWithLabel:)` replaces `labelSuffix` and accepts both Chrome's `– <label>` (en dash) and Brave's ` - <label>` (hyphen). See §4, D12. |
 | `Resolution.swift` | `Resolver.profile(account:directory:in:)` is extracted from `resolve`, so Placement can resolve a row that isn't a `Site` yet. Wording no longer says "Chrome". |
@@ -245,7 +251,9 @@ Every Chrome constant became a `Browser` parameter. The module keeps its name (D
 - `EditorModel.swift`, `SitesPane.swift`, `SiteIcons.swift`, `ProfilePictures.swift`: the
   Browser menu, per-browser profile lists (read once per opening of the window), None,
   Choose…, and the reason shown when a list can't be read.
-- `Setup.swift`: per-browser Automation, and the Full Disk Access line, per §2.7.
+- `Setup.swift`, `WelcomeWindow.swift`: upstream's Welcome window helpers take a browser
+  (`Setup.browser`, `access(of:)`, `ask(for:)`, `profilesRefused(_:)`, `catalog(_:)`, and a
+  `fullDiskAccess` pane). The row and the starter keys use them, per §2.7.
 - `StatusMenu.swift`: Check Config uses the new Checkup; Add Current Tab is enabled while
   any full-support browser runs.
 
@@ -257,7 +265,12 @@ Every Chrome constant became a `Browser` parameter. The module keeps its name (D
   cask description.
 - `README.md`, `site/index.html`: the config example, a `browser:` reference, the fallback
   rule, permissions, and the jump description. `Package.swift`: header comment.
-- `VERSION`: `0.8.0`, as #26 bumped inside its feature PR.
+- `skills/capsjump/SKILL.md` (upstream's coding-agent skill): it describes sites in any
+  browser, makes `account`/`profile` optional, documents `browser`, and says how to list
+  another browser's profiles (`capsjump profiles <browser> --json`).
+  `SkillReferenceTests.knowsEveryBrowser` pins every `browser:` name in it, in the same
+  way upstream pins window moves and actions.
+- `VERSION`: `0.10.0` (upstream is at 0.9.0), as #26 bumped inside its feature PR.
 
 ### 3.6 Tests
 
@@ -287,14 +300,16 @@ written. The app-side SwiftUI/AppKit code has no tests, as before. It was checke
 | `7f58e3e` | Add Current Tab reads the browser you used last. |
 | `d02d5d8` | Editor: Browser menu, None. |
 | `0193740` | Setup per browser; Info.plist. |
-| `3e0303c` | Docs; version 0.8.0. |
+| `3e0303c` | Docs; version 0.8.0 (now 0.10.0, see the merge). |
 | `47036aa` | **Fix from live testing:** Brave's titles use a hyphen before the profile (D12). |
 | `7282ceb` | Fix: a browser whose folder outlives the app counts as not installed. |
 | `5561c9c` | Fix: the editor keeps a site's account when no browser takes it. |
 | `45666a1` | Fix: Add Current Tab asks for a profile it can't tell, and makes per-profile sites. |
 | `c9c8cc6` | Fix: a site with no profile finds its tab in any named window. |
-| `5d959ef` | Fix: Setup asks for Full Disk Access only when a site needs a profile list. |
+| `5d959ef` | Fix: Setup asks for Full Disk Access only when a site needs a profile list. Superseded by the merge, where upstream's Welcome window replaced that Setup. |
 | `4399fc6` | Fix: the editor and Add Current Tab say why profiles can't be listed. |
+| `53c4ee3` | This document. |
+| merge | Merge of upstream `main` (0.9.0): conflicts resolved per §10; the Welcome window, `profiles --json`, the skill and the README/site follow browsers; version 0.10.0; Setup's now-unused `browsersUsed`/`browsersReadingProfiles` removed with their tests. |
 
 The last seven commits came out of live testing and an independent review of the branch.
 They could be folded into the feature commits before merging if you prefer a shorter
@@ -335,7 +350,7 @@ profile list.
 
 **D6. A site with only `profile:` tries Chrome first** (implementer, in the plan).
 `Default` and `Profile 1` exist in every Chromium browser, so a folder alone doesn't say
-which browser was meant, and before 0.8.0 such sites were Chrome's.
+which browser was meant, and before this change such sites were Chrome's.
 
 **D7. Name-only accounts are left as they are** (the person, after the review raised it).
 Chrome and Chromium name the first profile "Person 1". An old config with
@@ -378,14 +393,17 @@ review). A browser's data folder outlives the app. The test Mac had Chrome's fol
 Chrome, so the fallback "found" profiles in an uninstalled Chrome, and `check` called a
 failing site fine.
 
-**D15. Setup only asks for browsers that are installed, and only starts the default
-browser** (implementer). Other browsers are asked for when they run, or on their first
-jump. Starting several browsers during Setup seemed unkind.
+**D15. The Welcome window asks about one browser** (implementer, at the merge). That is
+the one sites open in: the default browser when CapsJump scripts it, else Chrome. Other
+browsers are asked for by macOS on their first jump. Before the merge, a Setup alert
+asked for each browser the config uses; upstream's one-row-per-permission design is
+simpler, and starting several browsers during setup seemed unkind.
 
-**D16. Full Disk Access is only "missing" when a site needs it** (implementer, from the
-review). A refused list counts only for a browser some site looks an account or folder up
-in (`browsersReadingProfiles`). Otherwise every launch would re-run Setup for a
-permission no site needs.
+**D16. Full Disk Access is a hint, never a blocker** (implementer, from the review, kept
+through the merge). Sites with no account never read a profile list. The Welcome
+window's browser row shows the Full Disk Access hint only when the list is refused, and
+like every optional row it doesn't count towards "set up". Before the merge, the same
+aim was met by counting a refused list only when a site needed it.
 
 **D17. A no-account site stands in for a tab only when the tab's profile can't be told
 apart** (implementer, from the review; this reverses the plan). When the tab's profile is
@@ -402,7 +420,12 @@ it lists no profiles". The reader's "must be a mapping with name and open" no lo
 mentions account. The refused-list hint says "turn CapsJump on under … Full Disk Access",
 even when the CLI (running as the terminal) prints it.
 
-**D20. Version 0.8.0 inside this PR**, following #26.
+**D20. Version 0.10.0 inside this PR**, following #26. It was 0.8.0 until upstream
+reached 0.9.0.
+
+**D21. At the merge, upstream's starter rule wins** (implementer). Upstream 0.9.0 writes
+no example site when accounts can't be read ("never a made-up one"); the branch had
+written a site with no account. That is the maintainer's recent call, so it stays.
 
 ---
 
@@ -411,9 +434,9 @@ even when the CLI (running as the terminal) prints it.
 - **Existing configs:** unchanged behaviour when Chrome is the default. With another
   default, sites with an account keep landing in Chrome through the fallback (D2), and
   folder-only sites stay Chrome's (D6). The one known way an old site can move is D7.
-- **Old CapsJump reading a 0.8.0 file:** `browser:` is an unknown key, and a site with no
+- **Old CapsJump reading a 0.10.0 file:** `browser:` is an unknown key, and a site with no
   account breaks the old rule, so 0.7.x refuses the file and keeps its last keys. The
-  README says a file using either needs 0.8.0.
+  README says a file using either needs 0.10.0.
 - **Bundle ID:** unchanged (`ai.stigmer.capsjump`). Releases keep their grants as before.
 
 ---
@@ -422,7 +445,7 @@ even when the CLI (running as the terminal) prints it.
 
 ### 6.1 Automated
 
-`swift test`: 217 tests, all passing on macOS 27.0.1 / Swift 6.4 (Xcode with the
+`swift test`: 237 tests, all passing on macOS 27.0.1 / Swift 6.4 (Xcode with the
 macOS 27 SDK). Every Core rule in §2 has a test with hand-written expectations: literal
 JSON profile lists, literal window titles as measured, and exact message strings where
 the wording matters.
@@ -453,7 +476,9 @@ the wording matters.
   `Microsoft Edge`. CapsJump.app could read Brave's list once it had Full Disk Access. It
   wasn't established whether a narrower "App Data" style permission suffices.
 - **Arc** was not tried.
-- **The app UI** (editor, Add Current Tab, Setup alert) was only checked by hand in Brave.
+- **The app UI** (editor, Add Current Tab) was only checked by hand in Brave, before the
+  merge. **The Welcome window's browser row was written at the merge and has not been run
+  live.** It builds and its helpers are the tested ones, but please open it once.
 
 ### 6.4 A testing gotcha worth knowing (not part of the change)
 
@@ -550,7 +575,8 @@ Suggested order (each step depends only on the ones before it):
 4. **The live side:** `Jumper.swift` (`Inputs.catalog`, `Jumper.perform`),
    `ChromeScripting.swift` (only the bundle ID goes into source), `ChromeLauncher.swift`.
 5. **The app:** `AddTabWindow.swift`, `BrowserTracker.swift`, `EditorModel.swift`,
-   `SitesPane.swift`, `Setup.swift`. These have no tests; read them against §2.4–§2.7.
+   `SitesPane.swift`, `Setup.swift`, `WelcomeWindow.swift`. These have no tests; read them
+   against §2.4–§2.7.
 6. **Docs:** README, site, this file.
 
 Useful commands:
@@ -574,3 +600,32 @@ Questions worth an agent's attention:
   `CatalogRead.problem(for:)`, `OpenReason`.)
 - Does a config written by 0.7.x behave the same on a Chrome-default Mac? (Intended: yes,
   line for line, apart from `check` now printing the browser.)
+
+---
+
+## 10. Merging with upstream 0.9.0
+
+The branch started from 0.7.1. Upstream reached 0.9.0 meanwhile (#30–#41: the Welcome
+window, the coding-agent skill, `profiles --json` / `check --json` / `tidy`, the site at
+capsjump.com, the new site design). It was merged in, not rebased, since upstream
+squash-merges PRs. Twelve files conflicted. Each was resolved by keeping upstream's
+change and applying the browser change on top:
+
+| File | Resolution |
+|---|---|
+| `VERSION` | `0.10.0`. |
+| `ChromeError.swift` | Upstream's click-to-fix wording, with the browser's name ("CapsJump may not control Brave; click to allow it, or turn on Brave under CapsJump in …"). |
+| `Permissions.swift` | Upstream's header (Accessibility is only read, since macOS 26) plus "each browser". |
+| `StarterConfig.swift` | Upstream's rule (D21), with "the default browser's" first profile. |
+| `ConfigTests.swift` | Upstream's starter test. |
+| `capsjump.rb.in` | Upstream's homepage (capsjump.com), with "browser profiles". |
+| `CapsJump.swift` (CLI) | Upstream's `tidy`, `check --json` and `profiles --json`, with `profiles [browser]`, and `check` reading every browser. |
+| `AppDelegate.swift` | Upstream's Welcome-window header comment, with Add Current Tab's browser. Upstream's `ChromeError.missingPermission` names the browser ("access to Brave"); `isMissingPermission` stays in `ChromeError`. |
+| `StatusMenu.swift` | Upstream's `layout` finding, with the browser-aware check. |
+| `Setup.swift` | Upstream's helper design, generalised to a browser (§3.4). |
+| `README.md`, `site/index.html` | Upstream's new copy and structure throughout; "Chrome" becomes "browser" where it now means any browser, plus the `browser:` reference, the fallback rule, `profiles [browser] [--json]` and the Full Disk Access hint. The site's demo illustration still shows Chrome, which is accurate. |
+
+Files upstream added that needed browser changes without conflicting:
+`WelcomeWindow.swift` (the row, §2.7), `skills/capsjump/SKILL.md` (§3.5) and the README's
+new "Give GitHub a key" steps.
+

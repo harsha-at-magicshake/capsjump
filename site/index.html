@@ -6,12 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CapsJump</title>
-  <meta name="description" content="Caps Lock finally has a job. Hold it and press a key to bring an app forward, land on a site in the right browser account, snap a window, or open a link.">
+  <meta name="description" content="Caps Lock finally has a job: one key to the right app, window or tab, in the browser profile you choose.">
   <meta property="og:title" content="CapsJump: Caps Lock finally has a job">
-  <meta property="og:description" content="Hold Caps Lock and press a key: your app comes forward, GitHub opens in your work account, the window snaps to half the screen.">
+  <meta property="og:description" content="Caps Lock finally has a job: one key to the right app, window or tab, in the browser profile you choose.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://whysosuresh.github.io/capsjump/">
-  <meta property="og:image" content="https://whysosuresh.github.io/capsjump/card.png">
+  <meta property="og:url" content="https://capsjump.com/">
+  <meta property="og:image" content="https://capsjump.com/card.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="CapsJump's config window: every key as a keycap with the app's or the site's own icon and the account's picture, and the picked key's field waiting for a new key">
@@ -29,54 +29,84 @@
   <main>
     <section class="hero">
       <h1>Caps Lock finally has a job.</h1>
-      <p class="lede">It spent decades waiting for someone to SHOUT. Now hold it and press a key: your terminal is just there, GitHub opens in your work account, the window snaps to half the screen. One small file says which key does what.</p>
-      <div class="install-line">
-        <code id="install">brew install --cask whysosuresh/tap/capsjump</code>
-        <button type="button" class="copy" data-copy="install" aria-label="Copy the install command">Copy</button>
+      <p class="lede">Hold it, press G: GitHub, in your work browser profile.</p>
+      <p class="fine">G is an example you configure. <a href="#chrome-shortcut">Give GitHub a key</a>.</p>
+      <!-- Release filenames contain versions; the latest release page stays current. -->
+      <div class="install-actions">
+        <a class="download-link" href="https://github.com/whysosuresh/capsjump/releases/latest" aria-describedby="hero-download-help">Download for Mac</a>
+        <div class="install-line">
+          <code id="install">brew install --cask whysosuresh/tap/capsjump</code>
+          <button type="button" class="copy" data-copy="install" aria-label="Copy the install command">Copy</button>
+        </div>
       </div>
+      <p class="fine" id="hero-download-help">Opens the latest GitHub release. Download the CapsJump ZIP under Assets.</p>
       <p class="fine">Free and open source, for macOS 13 or later.</p>
     </section>
 
-    <section class="demo" aria-label="Caps Lock and G bring the GitHub tab forward in the work account">
-      <svg viewBox="0 24 640 226" role="img" aria-hidden="true">
-        <g class="keys">
-          <g class="key key-caps">
-            <rect class="key-side" x="20" y="132" width="150" height="76" rx="14"/>
-            <rect class="key-top" x="20" y="124" width="150" height="76" rx="14"/>
-            <path class="glyph" d="M52 140 L40 153 H47 V162 H57 V153 H64 Z"/>
-            <text class="key-label" x="50" y="186">caps lock</text>
+    <section class="demo" aria-label="With these example keys configured, hold Caps Lock, then press G for the pull requests in your work Chrome profile, the left arrow to snap that window to the left half, W for the #launch channel in Slack, and S for your terminal">
+      <svg viewBox="0 0 640 376" role="img" aria-hidden="true">
+        <defs>
+          <g id="desk-term">
+            <image class="shot-light" href="demo-term.webp" x="322" y="32" width="306" height="262"/>
+            <image class="shot-dark" href="demo-term-dark.webp" x="322" y="32" width="306" height="262"/>
           </g>
-          <g class="key key-g">
-            <rect class="key-side" x="186" y="132" width="76" height="76" rx="14"/>
-            <rect class="key-top" x="186" y="124" width="76" height="76" rx="14"/>
-            <text class="key-letter" x="224" y="172">G</text>
+          <g id="desk-chat">
+            <image class="shot-light" href="demo-slack.webp" x="56" y="78" width="286" height="196"/>
+            <image class="shot-dark" href="demo-slack-dark.webp" x="56" y="78" width="286" height="196"/>
           </g>
+        </defs>
+        <rect class="screen" x="6" y="6" width="628" height="300" rx="12"/>
+        <path class="menubar" d="M6 18 A12 12 0 0 1 18 6 H622 A12 12 0 0 1 634 18 V26 H6 Z"/>
+        <text class="menu-app app-term" x="20" y="20">Terminal</text>
+        <text class="menu-app app-chrome" x="20" y="20">Chrome</text>
+        <text class="menu-app app-slack" x="20" y="20">Slack</text>
+        <text class="menu" x="80" y="20">File Edit View Window Help</text>
+        <text class="menu end" x="620" y="20">Tue 10:24</text>
+        <g class="windows">
+          <use href="#desk-term"/>
+          <use href="#desk-chat"/>
+          <g class="chrome">
+            <g class="page-docs">
+              <image class="shot-light" href="demo-chrome-docs.webp" x="168" y="40" width="304" height="262"/>
+              <image class="shot-dark" href="demo-chrome-docs-dark.webp" x="168" y="40" width="304" height="262"/>
+            </g>
+            <g class="page-pr">
+              <image class="shot-light" href="demo-chrome-pr.webp" x="168" y="40" width="304" height="262"/>
+              <image class="shot-dark" href="demo-chrome-pr-dark.webp" x="168" y="40" width="304" height="262"/>
+            </g>
+            <circle class="account-ring" cx="442.5" cy="71.5" r="7"/>
+          </g>
+          <use class="chat-front" href="#desk-chat"/>
+          <use class="term-front" href="#desk-term"/>
         </g>
-        <path class="arc" d="M240 112 C 270 40, 330 34, 352 70"/>
-        <g class="browser">
-          <rect class="window" x="330" y="56" width="290" height="180" rx="14"/>
-          <rect class="chip" x="540" y="68" width="68" height="22" rx="11"/>
-          <text class="chip-label" x="574" y="83">Work</text>
-          <g class="tab tab-mail"><rect x="342" y="98" width="86" height="26" rx="8"/><text x="385" y="115">Inbox</text></g>
-          <g class="tab tab-docs"><rect x="432" y="98" width="80" height="26" rx="8"/><text x="472" y="115">Docs</text></g>
-          <g class="tab tab-pr"><rect x="516" y="98" width="92" height="26" rx="8"/><text x="562" y="115">Pull requests</text></g>
-          <rect class="page" x="342" y="132" width="266" height="92" rx="8"/>
-          <rect class="line l1" x="358" y="150" width="180" height="10" rx="5"/>
-          <rect class="line l2" x="358" y="170" width="220" height="10" rx="5"/>
-          <rect class="line l3" x="358" y="190" width="140" height="10" rx="5"/>
+        <g class="keys">
+          <g class="key key-caps"><rect class="key-base" x="136" y="325" width="120" height="46" rx="9"/><g class="cap"><rect class="key-top" x="136" y="322" width="120" height="46" rx="9"/><text class="key-glyph key-label" x="148" y="359">caps lock</text></g></g>
+          <text class="plus" x="269" y="352">+</text>
+          <g class="key key-g"><rect class="key-base" x="282" y="325" width="48" height="46" rx="9"/><g class="cap"><rect class="key-top" x="282" y="322" width="48" height="46" rx="9"/><text class="key-glyph key-letter" x="306" y="352">G</text></g></g>
+          <g class="key key-left"><rect class="key-base" x="340" y="325" width="48" height="46" rx="9"/><g class="cap"><rect class="key-top" x="340" y="322" width="48" height="46" rx="9"/><path class="key-glyph" d="M357 345 L370 338 V352 Z"/></g></g>
+          <g class="key key-w"><rect class="key-base" x="398" y="325" width="48" height="46" rx="9"/><g class="cap"><rect class="key-top" x="398" y="322" width="48" height="46" rx="9"/><text class="key-glyph key-letter" x="422" y="352">W</text></g></g>
+          <g class="key key-s"><rect class="key-base" x="456" y="325" width="48" height="46" rx="9"/><g class="cap"><rect class="key-top" x="456" y="322" width="48" height="46" rx="9"/><text class="key-glyph key-letter" x="480" y="352">S</text></g></g>
         </g>
       </svg>
-      <p class="caption"><kbd>Caps Lock</kbd> + <kbd>G</kbd> lands on the pull requests tab, in the work account.</p>
+      <div class="legend">
+        <p class="legend-lead">With these example keys configured, hold <kbd>Caps Lock</kbd>, then:</p>
+        <ol class="legend-list">
+          <li class="beat-g"><kbd>G</kbd> pull requests, in the work Chrome profile</li>
+          <li class="beat-left"><kbd>←</kbd> that window to the left half</li>
+          <li class="beat-w"><kbd>W</kbd> the #launch channel in Slack</li>
+          <li class="beat-s"><kbd>S</kbd> your terminal</li>
+        </ol>
+      </div>
     </section>
 
     <section class="panels">
       <article>
-        <h2>Apps</h2>
-        <p><kbd>Caps</kbd> + <kbd>S</kbd> and your terminal is just there. Not running? It starts. Hiding with no window? It opens one. No more fishing in the Dock.</p>
+        <h2>Browser profiles</h2>
+        <p>Give GitHub a key in your work profile, in Chrome, Brave, Edge, Vivaldi or Chromium. CapsJump brings a matching tab forward when it can find one. If no tab matches, it opens the page in that profile.</p>
       </article>
       <article>
-        <h2>Browser accounts</h2>
-        <p><kbd>Caps</kbd> + <kbd>G</kbd> lands on the GitHub tab in your work account. Not your personal one. Never your personal one. No tab yet? It opens one in the right place.</p>
+        <h2>Apps</h2>
+        <p><kbd>Caps</kbd> + <kbd>S</kbd> and your terminal is just there. Not running? It starts. Hiding with no window? It opens one. No more fishing in the Dock.</p>
       </article>
       <article>
         <h2>Windows</h2>
@@ -142,26 +172,52 @@ keys:
       <p class="fine">Key names: <code>a</code>–<code>z</code>, <code>0</code>–<code>9</code>, <code>f1</code>–<code>f12</code> and the arrows. A file with no <code>keys:</code> leaves Caps Lock as it is.</p>
     </section>
 
+    <section class="agent">
+      <h2>Or ask your coding agent</h2>
+      <p>Tell Claude Code, Codex, Cursor or another coding agent what you want, in your own words. With CapsJump's skill, it installs CapsJump if you don't have it yet, looks up your browser's profiles instead of guessing an email, keeps your other keys, and has CapsJump check the file until it's clean. Then it tells you each new key in a line. Granting macOS permissions stays with you.</p>
+      <div class="install-line">
+        <code id="skill">npx skills add whysosuresh/capsjump</code>
+        <button type="button" class="copy" data-copy="skill" aria-label="Copy the command that installs CapsJump's skill">Copy</button>
+      </div>
+      <p class="fine">Or, in Claude Code, as a plugin: <code>/plugin install capsjump --marketplace whysosuresh/capsjump</code></p>
+      <p>Then ask, for example:</p>
+      <blockquote class="prompt">Caps Lock + G should open our pull requests in my work Chrome, and Caps Lock + S my terminal.</blockquote>
+    </section>
+
     <section class="install">
       <h2>Install</h2>
+      <h3>Download</h3>
+      <a class="download-link" href="https://github.com/whysosuresh/capsjump/releases/latest" aria-describedby="install-download-help">Download for Mac</a>
+      <p class="fine" id="install-download-help">Opens the latest GitHub release. Download the CapsJump ZIP under Assets.</p>
+      <p>Unzip it, move <strong>CapsJump.app</strong> to Applications, and open it.</p>
+      <h3>Homebrew</h3>
 <pre><code>brew install --cask whysosuresh/tap/capsjump
-capsjump setup
-capsjump init</code></pre>
+open -a CapsJump</code></pre>
+      <p>Open source. CapsJump has no analytics. Quit CapsJump and Caps Lock works normally again.</p>
+      <p>Accessibility lets CapsJump handle your shortcuts and move windows. Access to your browser lets it find and switch tabs. Configuration and saved icons are read locally; websites and apps you open make their own connections.</p>
+      <h3>Set up your keys</h3>
+      <p>Both routes open the same Welcome window, with three steps that tick themselves as you go:</p>
       <ol>
-        <li><code>capsjump setup</code> asks for the permissions once (Accessibility, browser automation, notifications) and starts CapsJump at login. A Caps Lock symbol appears in the menu bar.</li>
-        <li><code>capsjump init</code> writes a starter <code>~/.capsjump.yaml</code> for your default browser; <code>capsjump profiles</code> lists its profiles. Edit it, then run <code>capsjump check</code>.</li>
+        <li><strong>Let CapsJump hear Caps Lock.</strong> macOS asks with its own box: click Open System Settings there and turn CapsJump on. The step ticks the moment you do.</li>
+        <li><strong>Choose your keys.</strong> One click turns on the starter keys (the arrows snap the front window to a half, F fills the screen), or set up your own. While CapsJump has keys, Caps Lock no longer types capitals; Shift still does.</li>
+        <li><strong>Try it.</strong> Click any window, hold Caps Lock and press ←.</li>
       </ol>
-      <h3>Moving from stigmer/tap</h3>
-      <p>CapsJump used to install from <code>stigmer/tap</code>. Homebrew doesn't move an installed cask from one tap to another by itself, so if you installed it from there, move it once:</p>
-<pre><code>brew uninstall --cask capsjump
-brew install --cask whysosuresh/tap/capsjump</code></pre>
-      <p>Your Accessibility permission, start-at-login and <code>~/.capsjump.yaml</code> stay as they are.</p>
+      <p>Notifications and Start at login have their own controls in the Welcome window. Close it whenever you like: CapsJump's mark in the menu bar carries a small dot until it's set up, and its menu starts with Finish Setting Up….</p>
+      <h3 id="chrome-shortcut">Give GitHub a key</h3>
+      <p>G is an example you configure; the starter keys move windows.</p>
+      <ol>
+        <li>In the Welcome window, choose <strong>Allow…</strong> under your browser's accounts (<strong>Brave accounts</strong>, say, or <strong>Google Chrome accounts</strong>). If access was previously denied, choose <strong>Open Automation Settings</strong> instead.</li>
+        <li>Open GitHub in the browser profile you want, then choose <strong>Add Current Tab…</strong> from CapsJump's menu.</li>
+        <li>When the <strong>Account</strong> field is shown, confirm the intended profile; select it if it says <strong>Choose…</strong>. Assign G or another available key, then choose <strong>Add</strong> or <strong>Add Key</strong>.</li>
+        <li>Hold Caps Lock and press the key you assigned.</li>
+      </ol>
     </section>
 
     <section class="notes">
       <h2>Good to know</h2>
       <ul>
         <li><strong>Your browser, for sites.</strong> Sites open in your default browser, or the one a site names. In Chrome, Brave, Edge, Vivaldi and Chromium they land in the right account, on the tab you already have open; other browsers just open the page. App, window and link keys work with anything.</li>
+        <li><strong>Profiles and open tabs.</strong> CapsJump chooses the browser profile, not the account signed in on a website. Tabs on other desktops or in full-screen windows may open again. Profiles with the same window label open a new tab instead of reusing one.</li>
         <li><strong>Site icons and account pictures come from your browser.</strong> Each site shows the icon its browser has already saved on your Mac for that account, and each account the picture the browser shows for it. Nothing is fetched; a site the browser hasn't shown there yet keeps a globe.</li>
         <li><strong>Windows stay on their screen.</strong> A window snaps within the screen it is on; moving it to another screen isn't a key yet.</li>
         <li><strong>Not while typing a password.</strong> macOS keeps every app's shortcuts out of password fields; the keys work again as soon as you leave one.</li>
@@ -171,7 +227,7 @@ brew install --cask whysosuresh/tap/capsjump</code></pre>
   </main>
 
   <footer class="foot">
-    <span>MIT licensed. Made by <a href="https://github.com/whysosuresh">Suresh Attaluri</a>, founder of <a href="https://stigmer.ai">Stigmer</a>. No caps were locked in the making of this app.</span>
+    <span>Free and MIT licensed, and it belongs to the people who use it. Got an idea for Caps Lock's next job? <a href="https://github.com/whysosuresh/capsjump/issues">Open an issue</a> or <a href="https://github.com/whysosuresh/capsjump/pulls">send a pull request</a>. No caps were locked in the making of this app.</span>
     <a href="https://github.com/whysosuresh/capsjump">Source on GitHub</a>
   </footer>
 

@@ -1,5 +1,6 @@
 // What can go wrong talking to a browser, each case worded for the person who has to fix
-// it and naming the browser.
+// it and naming the browser. Only the app talks to a browser, so these reach people as its
+// notifications; the two permission cases open the Welcome window when clicked.
 
 import Foundation
 
@@ -17,9 +18,9 @@ public enum ChromeError: Error, Equatable, CustomStringConvertible {
         case let .notInstalled(browser):
             "\(browser) is not installed"
         case let .automationDenied(browser):
-            "CapsJump may not control \(browser); allow it in System Settings › Privacy & Security › Automation, or run `capsjump setup`"
+            "CapsJump may not control \(browser); click to allow it, or turn on \(browser) under CapsJump in System Settings › Privacy & Security › Automation"
         case .accessibilityDenied:
-            "CapsJump has no Accessibility permission; turn it on in System Settings › Privacy & Security › Accessibility, or run `capsjump setup`"
+            "CapsJump has no Accessibility permission; click to finish setting up"
         case let .windowGone(browser):
             "\(browser), or the window, closed during the jump"
         case let .script(browser, code, message):

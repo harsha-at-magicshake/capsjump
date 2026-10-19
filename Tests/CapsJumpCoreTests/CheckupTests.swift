@@ -152,22 +152,4 @@ import Testing
     }
 
     private static let twoSites = "sites:\n  - name: a\n    account: x\n    open: https://a.com\n  - name: b\n    account: y\n    open: https://b.com\n"
-
-    @Test func browsersWhoseProfileListASiteNeeds() throws {
-        let none = try ConfigParser.parse("sites:\n  - name: a\n    open: https://a.com\n")
-        #expect(Placement.browsersReadingProfiles(by: none, defaultBrowser: .brave) == [])
-        let account = try ConfigParser.parse("sites:\n  - name: a\n    account: x\n    open: https://a.com\n")
-        #expect(Placement.browsersReadingProfiles(by: account, defaultBrowser: .brave) == [.brave, .chrome])
-        let named = try ConfigParser.parse("sites:\n  - name: a\n    browser: edge\n    account: x\n    open: https://a.com\n")
-        #expect(Placement.browsersReadingProfiles(by: named, defaultBrowser: .brave) == [.edge])
-    }
-
-    @Test func browsersAJumpMayScript() throws {
-        let mixed = try ConfigParser.parse("sites:\n  - name: a\n    open: https://a.com\n  - name: b\n    browser: chrome\n    open: https://b.com\n  - name: c\n    browser: safari\n    open: https://c.com\n")
-        #expect(Placement.browsersUsed(by: mixed, defaultBrowser: .brave) == [.brave, .chrome])
-        let account = try ConfigParser.parse("sites:\n  - name: a\n    account: x\n    open: https://a.com\n")
-        #expect(Placement.browsersUsed(by: account, defaultBrowser: .safari) == [.chrome])
-        let none = try ConfigParser.parse("sites:\n  - name: a\n    open: https://a.com\n")
-        #expect(Placement.browsersUsed(by: none, defaultBrowser: .safari) == [])
-    }
 }
