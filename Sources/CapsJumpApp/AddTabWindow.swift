@@ -27,6 +27,9 @@ final class AddTabModel: ObservableObject {
     @Published var profileDirectory: String? {
         didSet { pickProfile() }
     }
+    /// The tab's window didn't say which of several profiles it is in: nothing is saved
+    /// until the person picks one, None included.
+    @Published var mustChoose: Bool
     let subject: Subject
     let catalog: ProfileCatalog?
     /// The browser the tab was read from.
@@ -41,6 +44,7 @@ final class AddTabModel: ObservableObject {
         self.browser = browser
         self.defaultBrowser = defaultBrowser
         self.reads = reads
+        mustChoose = TabCapture.needsProfileChoice(catalog: catalog, profile: profile)
         profileDirectory = profile?.directory
         pickProfile()
         key = TabCapture.suggestedKey(for: siteName, free: draft.freeKeys())
@@ -172,15 +176,28 @@ struct AddTabView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         if let catalog = model.catalog {
                             AccountPicker(
-                                selection: Binding(get: { model.profileDirectory }, set: { directory in afterUpdate { model.profileDirectory = directory } }),
+                                selection: Binding(
+                                    get: { model.mustChoose ? AccountPicker.unchosen : model.profileDirectory },
+                                    set: { directory in
+                                        guard directory != AccountPicker.unchosen else { return }
+                                        afterUpdate {
+                                            model.mustChoose = false
+                                            model.profileDirectory = directory
+                                        }
+                                    }
+                                ),
                                 profiles: catalog.profiles,
                                 browser: model.browser,
-                                none: "None (\(model.browser)'s own choice)"
+                                none: "None (\(model.browser)'s own choice)",
+                                asksFirst: model.mustChoose
                             )
                         } else {
                             TextField("Account", text: $model.account, prompt: Text("you@work.com"))
                         }
-                        EditorNotes(note: model.landing.map { "Lands in \($0)" }, problems: model.problems(.browser, .account, .profile))
+                        EditorNotes(
+                            note: model.mustChoose ? "CapsJump couldn't tell which profile this tab is in; pick one." : model.landing.map { "Lands in \($0)" },
+                            problems: model.problems(.browser, .account, .profile)
+                        )
                     }
                     FieldRow(label: "Page", text: $model.page, prompt: "https://", problems: model.problems(.open, .match))
                     keyField
@@ -202,7 +219,7 @@ struct AddTabView: View {
                     .keyboardShortcut(.cancelAction)
                 Button(model.isExisting ? "Add Key" : "Add", action: onAdd)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(model.config == nil)
+                    .disabled(model.config == nil || model.mustChoose)
             }
             .padding([.horizontal, .bottom], 20)
         }

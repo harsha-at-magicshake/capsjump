@@ -172,12 +172,20 @@ struct AccountPicker: View {
     let browser: Browser
     /// The choice of no account, for the browser's own choice of profile.
     let none: String
+    /// Whether to offer "Choose…" first, for a selection no one has made yet.
+    var asksFirst = false
+
+    /// The selection that stands for no choice made yet.
+    static let unchosen = "\u{0}unchosen"
     @State private var images: [String: NSImage] = [:]
 
     private static let side: CGFloat = 16
 
     var body: some View {
         Picker("Account", selection: selection) {
+            if asksFirst {
+                Text("Choose…").tag(Optional(Self.unchosen))
+            }
             Text(none).tag(String?.none)
             ForEach(profiles, id: \.directory) { profile in
                 Label {

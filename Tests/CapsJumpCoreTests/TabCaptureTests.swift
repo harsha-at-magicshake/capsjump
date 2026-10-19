@@ -126,13 +126,26 @@ import Testing
         #expect(existing("https://gitlab.com/", acme) == nil)
     }
 
-    @Test func aSiteWithNoProfileIsOnTheTabInAnyOfItsBrowsersProfiles() throws {
+    @Test func aSiteWithNoProfileIsTheTabOnlyWhenNoProfileIsKnown() throws {
         let c = try catalog()
         let config = try ConfigParser.parse("sites:\n  - name: docs\n    open: https://docs.x.com/\n")
         let acme = try #require(c.profile(directory: "Profile 1"))
         let reads = { (b: Browser) -> CatalogRead in .read(c) }
-        #expect(TabCapture.existingSite(for: "https://docs.x.com/a", browser: .brave, profile: acme, in: config, defaultBrowser: .brave, catalog: reads)?.name == "docs")
+        // The tab is in a known profile of a browser with several: a site of its own in
+        // that profile can be made, so the site with no account doesn't stand in for it.
+        #expect(TabCapture.existingSite(for: "https://docs.x.com/a", browser: .brave, profile: acme, in: config, defaultBrowser: .brave, catalog: reads) == nil)
         #expect(TabCapture.existingSite(for: "https://docs.x.com/a", browser: .brave, profile: nil, in: config, defaultBrowser: .brave, catalog: reads)?.name == "docs")
-        #expect(TabCapture.existingSite(for: "https://docs.x.com/a", browser: .chrome, profile: acme, in: config, defaultBrowser: .brave, catalog: reads) == nil)
+        #expect(TabCapture.existingSite(for: "https://docs.x.com/a", browser: .chrome, profile: nil, in: config, defaultBrowser: .brave, catalog: reads) == nil)
+        let one = try ProfileCatalog.parse(localState: Data(#"{"profile": {"info_cache": {"Default": {"name": "Work"}}}}"#.utf8))
+        #expect(TabCapture.existingSite(for: "https://docs.x.com/a", browser: .brave, profile: one.profiles[0], in: config, defaultBrowser: .brave, catalog: { _ in .read(one) })?.name == "docs")
+    }
+
+    @Test func aTabInAnUnknownProfileNeedsAChoice() throws {
+        let c = try catalog()
+        #expect(TabCapture.needsProfileChoice(catalog: c, profile: nil))
+        #expect(!TabCapture.needsProfileChoice(catalog: c, profile: c.profiles[0]))
+        #expect(!TabCapture.needsProfileChoice(catalog: nil, profile: nil))
+        let one = ProfileCatalog(profiles: [c.profiles[0]])
+        #expect(!TabCapture.needsProfileChoice(catalog: one, profile: nil))
     }
 }

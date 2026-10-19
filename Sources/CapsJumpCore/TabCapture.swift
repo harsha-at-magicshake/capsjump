@@ -41,15 +41,20 @@ public enum TabCapture {
     }
 
     /// The site a jump would land on this page with, in `browser` and `profile` (nil when
-    /// the tab's profile is unknown): one placed in that browser with no profile, or in
-    /// that profile; the one whose matching prefix is the most specific, the first in the
-    /// file on a tie.
+    /// the tab's profile is unknown): one placed in that profile, or one placed in that
+    /// browser with no profile while the tab's profile can't be told apart (unknown, or the
+    /// browser's only one), since a tab in a known profile can have a site of its own
+    /// there; the one whose matching prefix is the most specific, the first in the file on
+    /// a tie.
     public static func existingSite(for url: String, browser: Browser, profile: ChromeProfile?, in config: Config, defaultBrowser: Browser, catalog: (Browser) -> CatalogRead) -> Site? {
         var best: (site: Site, length: Int)?
+        var several = false
+        if case let .read(profiles) = catalog(browser) { several = profiles.profiles.count > 1 }
+        let anyProfile = profile == nil || !several
         for site in config.sites {
             guard let destination = try? Placement.place(site, defaultBrowser: defaultBrowser, catalog: catalog),
                   destination.browser == browser,
-                  destination.target == nil || destination.target?.profile.directory == profile?.directory,
+                  destination.target.map({ $0.profile.directory == profile?.directory }) ?? anyProfile,
                   let prefix = site.match.first(where: { URLPrefix.matches(url, prefix: $0) })
             else { continue }
             if prefix.count > best?.length ?? -1 {
@@ -57,6 +62,12 @@ public enum TabCapture {
             }
         }
         return best?.site
+    }
+
+    /// Whether the person must pick the tab's profile: the browser has several and the
+    /// tab's window didn't say which, so no guess (none included) is made for them.
+    public static func needsProfileChoice(catalog: ProfileCatalog?, profile: ChromeProfile?) -> Bool {
+        profile == nil && (catalog?.profiles.count ?? 0) > 1
     }
 
     /// Lower-case letters and digits kept, every other run of characters one hyphen.
