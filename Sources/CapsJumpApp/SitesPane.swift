@@ -41,7 +41,9 @@ struct SiteList: View {
                 Text("Saving retires \(model.draft.brokenLinks.map { "capsjump://\($0)" }.joined(separator: ", ")). Keys follow a renamed site by themselves; a launcher or script using the old link needs the new name.")
                     .font(.caption)
                     .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
+                    // No fixedSize: forcing its ideal height under the List left the whole
+                    // window undrawn once this note appeared (#45). The VStack gives the
+                    // List what's left, so the note still shows in full.
                     .padding(10)
             }
         }
