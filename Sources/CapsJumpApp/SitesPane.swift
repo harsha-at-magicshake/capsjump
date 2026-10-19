@@ -177,7 +177,7 @@ struct SiteEditor: View, Equatable {
     private var account: some View {
         let id = form.id
         VStack(alignment: .leading, spacing: 4) {
-            if form.opensIn.support == .plain {
+            if form.opensIn.support == .plain, (form.site.account ?? "").isEmpty, (form.site.profile ?? "").isEmpty {
                 Text("\(form.opensIn.displayName) opens the page; CapsJump can't read its profiles")
                     .font(.caption)
                     .foregroundStyle(.secondary)

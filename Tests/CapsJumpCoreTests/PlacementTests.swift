@@ -133,5 +133,10 @@ private func place(_ site: Site, default browser: Browser, _ reads: [Browser: Ca
         #expect(Placement.browser(for: SiteSource(index: 0, name: "a", account: "Home", open: nil), defaultBrowser: .brave, catalog: reads) == (.brave, false))
         #expect(Placement.browser(for: SiteSource(index: 0, name: "a", account: "nobody", open: nil), defaultBrowser: .brave, catalog: reads) == (.brave, false))
         #expect(Placement.browser(for: SiteSource(index: 0, name: "a", open: nil, browser: "Safari"), defaultBrowser: .brave, catalog: reads) == (.safari, false))
+        // Nothing takes the account: the row stays with the first browser tried, never a
+        // default that can't hold an account.
+        let missing = lists([:])
+        #expect(Placement.browser(for: SiteSource(index: 0, name: "a", account: "x", open: nil), defaultBrowser: .safari, catalog: missing) == (.chrome, true))
+        #expect(Placement.browser(for: SiteSource(index: 0, name: "a", account: "x", open: nil), defaultBrowser: .brave, catalog: missing) == (.brave, false))
     }
 }

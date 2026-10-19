@@ -124,7 +124,7 @@ public enum Placement {
             if case .success = landing(account: account, profile: profile, in: browser, catalog: catalog) { return true }
             return false
         }
-        let browser = found ?? (named ?? defaultBrowser)
+        let browser = found ?? order.first ?? defaultBrowser
         return (browser, named == nil && browser != defaultBrowser)
     }
 
