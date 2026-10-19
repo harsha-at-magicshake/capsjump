@@ -180,7 +180,7 @@ A `site` key, or the link `capsjump://<name>`, runs a jump:
 
 A browser that only opens pages skips step 2. Chrome's scripting, which Brave, Edge, Vivaldi and Chromium share, doesn't say which profile a window belongs to, but its window title does (it ends in `– <profile label>`), and macOS Accessibility reads that title. CapsJump pairs each browser window with its title, so a window's profile is known without guessing. A web app's window (Outlook, say, installed from the browser) is listed with no title, so it is never the one a jump lands in; a new tab opens instead. Accessibility lists only the windows on the current Space, so CapsJump sees only those: from a full-screen window or another desktop, a site whose tab is in a window elsewhere gets a new tab instead of being focused. Keep the browser's windows on one desktop and out of full screen for jumps to find them. If two profiles carry the same label, their windows can't be told apart, so their sites always open a new tab; `capsjump check` says when that applies.
 
-If a permission is missing, the jump fails with a notification. It never opens a duplicate tab instead.
+If a permission is missing, the jump fails with a notification. So does a jump whose window doesn't come to the front within half a second; the notification names the app that stayed in front. It never opens a duplicate tab instead, and never tries again by itself.
 
 ## Permissions
 

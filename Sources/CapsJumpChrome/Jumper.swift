@@ -108,6 +108,11 @@ public enum Inputs {
 
 @MainActor
 public final class Jumper {
+    /// The browser came to the front within 258 ms in every measured jump (Chrome); a jump
+    /// looks for up to 500 ms, and the next key waits that long at most.
+    private static let landingReads = 11
+    private static let landingPause = Duration.milliseconds(50)
+
     /// One compiled script per browser, by bundle id.
     private var scripting: [String: ChromeScripting] = [:]
 
@@ -159,9 +164,36 @@ public final class Jumper {
         switch action {
         case let .focus(windowID, tabIndex, titleIndex):
             guard let scripting, let app else { throw .windowGone(browser.displayName) }
-            try scripting.focus(windowID: windowID, tabIndex: tabIndex)
-            app.activate()
-            if let titleIndex { ChromeAccessibility.raise(axWindows[titleIndex].element) }
+            // Accessibility's window, when it could pair one; a window it can't see (another
+            // desktop, full screen) is brought forward by the script alone.
+            let window = titleIndex.map { axWindows[$0].element }
+            let scripted = windows.first { $0.id == windowID }
+            // The script activates the browser, which brings all its windows forward; the
+            // raise then puts this one on top of them.
+            let carryOut = { () throws(ChromeError) in
+                try scripting.focus(windowID: windowID, tabIndex: tabIndex)
+                app.activate()
+                if let window { try ChromeAccessibility.raise(window, browser: browser) }
+            }
+            let read = { () throws(ChromeError) -> Foreground in
+                let front = NSWorkspace.shared.frontmostApplication
+                let inFront = front?.processIdentifier == app.processIdentifier
+                let focused = inFront ? try ChromeAccessibility.focusedWindow(of: app, browser: browser) : nil
+                let landed: Bool = if let window {
+                    focused.map { CFEqual($0, window) } ?? false
+                } else {
+                    // No element to compare: the focused title must start the way the
+                    // scripted window's name does, by the rule that pairs them.
+                    focused.flatMap(ChromeAccessibility.title(of:)).map { title in
+                        scripted.map { WindowPairing.title(title, fits: $0) } ?? false
+                    } ?? false
+                }
+                return Foreground(chromeInFront: inFront, frontApp: front?.localizedName, targetFocused: landed)
+            }
+            let missed = try await Landing.land(carryOut: carryOut, read: read, reads: Self.landingReads) {
+                try? await Task.sleep(for: Self.landingPause)
+            }
+            if let missed { throw .notInFront(browser.displayName, missed) }
             return .focused(site: destination.site.name, browser: browser.displayName, windowID: windowID, tabIndex: tabIndex)
         case let .open(profileDirectory, url, reason):
             try await ChromeLauncher.open(url, in: browser, profileDirectory: profileDirectory)

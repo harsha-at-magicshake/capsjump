@@ -40,6 +40,13 @@ public enum WindowPairing {
         return String(head.prefix(prefixCap))
     }
 
+    /// Whether an Accessibility title can be this window's: it starts with the window's
+    /// name up to any "…", capped; a window with no name fits no title.
+    public static func title(_ title: String, fits window: ChromeWindow) -> Bool {
+        let prefix = namePrefix(window.name)
+        return !prefix.isEmpty && title.hasPrefix(prefix)
+    }
+
     /// Whether the title ends in the profile's label, as Chrome writes it (`– <label>`) or
     /// as Brave does (` - <label>`).
     public static func title(_ title: String, endsWithLabel label: String) -> Bool {
@@ -48,11 +55,10 @@ public enum WindowPairing {
 
     /// For each paired Chrome window id (Chrome reports ids as text), the index of its title in `titles`.
     public static func pair(chrome: [ChromeWindow], titles: [String]) -> [String: Int] {
-        let prefixes = chrome.map { namePrefix($0.name) }
         // A window with no name (still loading, say) would be compatible with every title
         // and merge every group into one; it stays unpaired instead.
         let compatible: (Int, Int) -> Bool = { window, title in
-            !prefixes[window].isEmpty && titles[title].hasPrefix(prefixes[window])
+            Self.title(titles[title], fits: chrome[window])
         }
 
         var groups = UnionFind(count: chrome.count + titles.count)

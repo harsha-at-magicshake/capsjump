@@ -8,11 +8,11 @@ decision taken and why, what was and wasn't verified, the known open items, and 
 later.
 
 - Branch: `feat/sites-in-any-browser` on the fork `harsha-at-magicshake/capsjump`
-- Base: upstream `main` at `6785b46` (CapsJump 0.9.0, #41), merged into the branch. The
+- Base: upstream `main` at `8399825` (CapsJump 0.9.2, #47), merged into the branch. The
   work started from `a64c93a` (0.7.1); §10 lists how each conflict with upstream was
   resolved.
 - Version bumped to `0.10.0`
-- Tests: 237 Swift Testing tests (13 + 208 + 16 across the three test targets), all green
+- Tests: 249 Swift Testing tests (13 + 216 + 20 across the three test targets), all green
   on macOS 27.0.1 with Swift 6.4
 
 ---
@@ -128,6 +128,8 @@ under System Settings › Privacy & Security › Full Disk Access; Google Chrome
 - **A browser with one profile:** its titles carry no profile label, so any window counts.
 - **Plain browsers** just open the page.
 - A refused permission is still an error, **never** a reason to open a duplicate tab.
+- As upstream 0.9.1 added, a jump says `focused` only once it has seen the window in front,
+  in any of these browsers; otherwise a notification names the app that stayed in front.
 
 ### 2.4 Add Current Tab
 
@@ -387,6 +389,11 @@ implementation was stricter). The first version searched only windows paired wit
 Accessibility title, which also kept web apps out. Review pointed out that this gives
 duplicates for tabs on other desktops. Web apps are now kept out by their empty name, and
 a window Accessibility can't see is raised through scripting alone (`titleIndex: nil`).
+Since upstream 0.9.1's landing check (#43), a jump says `focused` only once it has seen
+the target in front. For such a window there is no Accessibility element to compare, so
+the check asks whether the browser's focused window title fits the scripted window's
+name, by the same rule that pairs windows (`WindowPairing.title(_:fits:)`, which pairing
+now also uses). See §10.
 
 **D14. A browser whose app is gone counts as not installed** (implementer, from the
 review). A browser's data folder outlives the app. The test Mac had Chrome's folder but no
@@ -445,7 +452,7 @@ written a site with no account. That is the maintainer's recent call, so it stay
 
 ### 6.1 Automated
 
-`swift test`: 237 tests, all passing on macOS 27.0.1 / Swift 6.4 (Xcode with the
+`swift test`: 249 tests, all passing on macOS 27.0.1 / Swift 6.4 (Xcode with the
 macOS 27 SDK). Every Core rule in §2 has a test with hand-written expectations: literal
 JSON profile lists, literal window titles as measured, and exact message strings where
 the wording matters.
@@ -628,4 +635,27 @@ change and applying the browser change on top:
 Files upstream added that needed browser changes without conflicting:
 `WelcomeWindow.swift` (the row, §2.7), `skills/capsjump/SKILL.md` (§3.5) and the README's
 new "Give GitHub a key" steps.
+
+### Second merge: upstream 0.9.1 and 0.9.2 (#43, #47)
+
+These change how a focus is carried out, not which window or tab is chosen, so they sit
+under #44's browser choice without changing it:
+
+- **#43** made the raise report its statuses, added `ChromeAccessibility.focusedWindow`,
+  and added the Core rule `Landing.land`. That rule reads the screen every 50 ms for up to
+  500 ms and reports `focused` only once the target is in front; otherwise the jump fails
+  with `.notInFront`.
+- **#47** put the browser's own `activate` back into the focus script (AppKit's activation
+  alone was refused on the signed release), while keeping #43's check.
+
+Resolutions:
+
+| File | Resolution |
+|---|---|
+| `ChromeScripting.swift` | Only the comment conflicted: the per-browser script never dropped `activate`. Upstream's reason is kept, worded for any browser. |
+| `ChromeError.swift` | Upstream's `.raise` and `.notInFront` carry the browser's name like every other case ("Accessibility could not bring Brave's window forward", "Brave kept another of its windows in front"). |
+| `ChromeAccessibility.swift` | `raise`, `focusedWindow` and `failure(_:during:)` take the browser; `.invalidUIElement` gives `windowGone(<browser>)`. Adds `title(of:)`. |
+| `Jumper.swift` | Upstream's order (script with activate, AppKit activate, raise) and landing check, per browser. A window Accessibility can't see (D13) skips the raise, and its landing is checked by title (`WindowPairing.title(_:fits:)`, tested). |
+| `ChromeAccessibilityTests.swift` (upstream's) | Same expectations through the browser-carrying API, plus a Brave case. |
+| `Package.swift`, `VERSION` | Both comments kept; `0.10.0`. |
 

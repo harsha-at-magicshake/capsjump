@@ -73,6 +73,9 @@ public final class ChromeScripting {
     }
 
     /// Activates the tab, brings its window to the browser's front and activates the browser.
+    /// The browser's own activate brings every one of its windows forward, but it is the
+    /// activation that lands from another app on a signed build; AppKit's alone was refused
+    /// there.
     public func focus(windowID: String, tabIndex: Int) throws(ChromeError) {
         _ = try call("focustab", NSAppleEventDescriptor(string: windowID), NSAppleEventDescriptor(int32: Int32(tabIndex)))
     }

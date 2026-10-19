@@ -109,6 +109,16 @@ private let lee = "lee@initech.com"
         #expect(WindowPairing.windows(labelled: "Brave", chrome: brave, titles: titles, pairing: pairing).isEmpty)
     }
 
+    @Test func aTitleFitsTheWindowWhoseNameItStartsWith() {
+        // How a jump knows it landed on a window Accessibility couldn't pair: the browser's
+        // focused title, measured in Brave, against the name its scripting gave the window.
+        let title = "Inbox (925) - manjulagurram123@gmail.com - Gmail - Brave - Parents"
+        #expect(WindowPairing.title(title, fits: ChromeWindow(id: "1", name: "Inbox (925) - manjulagurram123@gmail.com - Gmail")))
+        #expect(WindowPairing.title(title, fits: ChromeWindow(id: "1", name: "Inbox (925) - manjul…gmail.com - Gmail")))
+        #expect(!WindowPairing.title(title, fits: ChromeWindow(id: "2", name: "Sign in is not complete")))
+        #expect(!WindowPairing.title(title, fits: ChromeWindow(id: "3", name: "")))
+    }
+
     @Test func namelessWindowPairsWithNothingAndHarmsNoOne() {
         let chrome = [ChromeWindow(id: "1", name: ""), ChromeWindow(id: "2", name: "GitHub")]
         let titles = [title("Untitled", kim), title("GitHub", acme)]
