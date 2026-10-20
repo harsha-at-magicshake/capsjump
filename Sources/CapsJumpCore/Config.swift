@@ -83,10 +83,17 @@ public enum SiteName {
         if name.hasPrefix("_") {
             return "name `\(name)` starts with `_`, which is reserved for CapsJump's own actions"
         }
-        let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-")
-        guard !name.isEmpty, name.allSatisfy(allowed.contains), name.first != "-", name.last != "-" else {
-            return "name `\(name)` may use only lower-case letters, digits and inner hyphens"
+        guard isValid(name) else {
+            // A capital is the likely slip: name the lower-case spelling when that one would do.
+            let lower = name.lowercased()
+            let hint = lower != name && isValid(lower) ? "; did you mean `\(lower)`?" : ""
+            return "name `\(name)` may use only lower-case letters, digits and inner hyphens\(hint)"
         }
         return nil
+    }
+
+    private static func isValid(_ name: String) -> Bool {
+        let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-")
+        return !name.isEmpty && name.allSatisfy(allowed.contains) && name.first != "-" && name.last != "-"
     }
 }

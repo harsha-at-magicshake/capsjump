@@ -160,7 +160,10 @@ public enum ConfigRules {
             problems.append(Problem(.key(index: entry.index, name: entry.key, field: field), line: entry.line, message))
         }
         if KeyNames.triggers(for: entry.key) == nil {
-            problem(.key, "unknown key name `\(entry.key)` (key names: a–z, 0–9, f1–f12, left, right, up, down)")
+            // Key names are lower-case, so a capital is the likely slip: name the spelling that works.
+            let lower = entry.key.lowercased()
+            let hint = lower != entry.key && KeyNames.triggers(for: lower) != nil ? "; did you mean `\(lower)`?" : ""
+            problem(.key, "unknown key name `\(entry.key)` (key names: a–z, 0–9, f1–f12, left, right, up, down)\(hint)")
         }
         guard let given = entry.action else {
             let unreadable = readProblems.contains { problem in

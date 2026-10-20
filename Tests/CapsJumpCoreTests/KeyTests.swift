@@ -157,7 +157,7 @@ import Testing
         }
         let problems = error?.problems ?? []
         let expected = [
-            "line 6: keys.G: unknown key name `G`",
+            "line 6: keys.G: unknown key name `G` (key names: a–z, 0–9, f1–f12, left, right, up, down); did you mean `g`?",
             "line 7: keys.a: no site named `gitlab` in `sites:`",
             "line 8: keys.b: give one action, not `app` and `site`",
             "line 9: keys.c: give one of `app`, `site`, `window` or `url`",

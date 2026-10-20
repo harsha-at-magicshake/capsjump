@@ -41,7 +41,7 @@ import Testing
             .key(index: 2, name: "j", field: .entry),
         ])
         #expect(problems.map(\.line) == [2, 2, 2, 2, 5, 9, 11, 12, 13])
-        #expect(problems[1].message == "name `GitHub` may use only lower-case letters, digits and inner hyphens")
+        #expect(problems[1].message == "name `GitHub` may use only lower-case letters, digits and inner hyphens; did you mean `github`?")
         #expect(problems[5].description == "line 9: sites[2] must be a mapping with name, account and open")
         #expect(problems[8].description == "line 13: keys.j must be a mapping with one of app, site, window or url, such as `{ app: Safari }`")
     }
@@ -58,10 +58,10 @@ import Testing
         """).map(\.description)
         #expect(problems == [
             "the file: unknown key `extra` (known keys: `keys`, `sites`)",
-            "line 2: sites[0] (Bad): name `Bad` may use only lower-case letters, digits and inner hyphens",
+            "line 2: sites[0] (Bad): name `Bad` may use only lower-case letters, digits and inner hyphens; did you mean `bad`?",
             "line 2: sites[0] (Bad): `account` must be a non-empty text",
             "line 2: sites[0] (Bad): give `account` (an email, or the profile's name) or `profile` (a folder such as `Profile 26`)",
-            "line 6: keys.G: unknown key name `G` (key names: a–z, 0–9, f1–f12, left, right, up, down)",
+            "line 6: keys.G: unknown key name `G` (key names: a–z, 0–9, f1–f12, left, right, up, down); did you mean `g`?",
             "line 6: keys.G: unknown key `colour` (known keys: `app`, `site`, `url`, `window`)",
         ])
     }

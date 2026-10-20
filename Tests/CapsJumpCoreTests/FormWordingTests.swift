@@ -29,7 +29,7 @@ import Testing
             SiteSource(index: 1, name: "a", account: "a", open: "https://y.com"),
         ]) == ["Another site is already called “a”."])
         #expect(wording([SiteSource(index: 0, name: "Big", account: "a", open: "https://x.com")]) == [
-            "name “Big” may use only lower-case letters, digits and inner hyphens",
+            "name “Big” may use only lower-case letters, digits and inner hyphens; did you mean “big”?",
         ])
     }
 

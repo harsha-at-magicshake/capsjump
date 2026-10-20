@@ -118,7 +118,8 @@ import Testing
         ("-x", "inner hyphens"),
         ("x-", "inner hyphens"),
         ("a.b", "inner hyphens"),
-        ("Git", "inner hyphens"),
+        ("Git", "inner hyphens; did you mean `git`?"),
+        ("GitHub-Kim", "did you mean `github-kim`?"),
         ("", "inner hyphens"),
     ] as [(String, String?)])
     func siteNames(name: String, problem: String?) {
@@ -128,6 +129,20 @@ import Testing
         } else {
             #expect(found == nil)
         }
+    }
+
+    @Test func noLowerCaseHintWhenLowerCaseIsNoBetter() {
+        #expect(SiteName.problem(with: "Git.Hub")?.contains("did you mean") == false)
+        let error = #expect(throws: ConfigError.self) {
+            try ConfigParser.parse("""
+            keys:
+              Foo: { app: Slack }
+              G: { app: Slack }
+            """)
+        }
+        let problems = error?.problems ?? []
+        #expect(problems.contains { $0.hasSuffix("keys.Foo: unknown key name `Foo` (key names: a–z, 0–9, f1–f12, left, right, up, down)") }, "\(problems)")
+        #expect(problems.contains { $0.hasSuffix("keys.G: unknown key name `G` (key names: a–z, 0–9, f1–f12, left, right, up, down); did you mean `g`?") }, "\(problems)")
     }
 
     @Test func starterIsCanonicalAndUsesTheFirstAccount() throws {

@@ -130,7 +130,7 @@ import Testing
             Issue.record("a broken file read as a config")
             return
         }
-        #expect(error.problems == ["line 2: keys.G: unknown key name `G` (key names: a–z, 0–9, f1–f12, left, right, up, down)"])
+        #expect(error.problems == ["line 2: keys.G: unknown key name `G` (key names: a–z, 0–9, f1–f12, left, right, up, down); did you mean `g`?"])
 
         let written = try file.write(config, replacing: broken.text)
         #expect(try file.read() == ConfigFile.Contents(text: written, result: .success(config)))
@@ -159,7 +159,7 @@ import Testing
             try ConfigFile(url: url).tidy()
         } throws: { error in
             guard case let .broken(path, problems) = error as? ConfigFile.Failure else { return false }
-            return path == url.path && problems.problems == ["line 2: keys.G: unknown key name `G` (key names: a–z, 0–9, f1–f12, left, right, up, down)"]
+            return path == url.path && problems.problems == ["line 2: keys.G: unknown key name `G` (key names: a–z, 0–9, f1–f12, left, right, up, down); did you mean `g`?"]
         }
         #expect(text(".capsjump.yaml") == "keys:\n  G: { window: maximize }\n")
     }
