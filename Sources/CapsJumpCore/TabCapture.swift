@@ -1,6 +1,6 @@
-// Turning the Chrome tab in front into a site: whether it is a page a site can open, a
-// name for it that no site has yet, and the site that already lands on it, if one does.
-// Chrome is read by the live side; every rule is here.
+// Turning the tab in front of Chrome or Brave into a site: whether it is a page a site can
+// open, a name for it that no site has yet, and the site that already lands on it, if one
+// does. The browser is read by the live side; every rule is here.
 
 import Foundation
 
@@ -42,10 +42,11 @@ public enum TabCapture {
 
     /// The site a jump in `profile` would land on this page with: the one whose matching
     /// prefix is the most specific, the first in the file on a tie.
-    public static func existingSite(for url: String, profile: ChromeProfile, in config: Config, catalog: ProfileCatalog) -> Site? {
+    public static func existingSite(for url: String, profile: ProfileID, in config: Config, lists: ProfileLists) -> Site? {
         var best: (site: Site, length: Int)?
         for site in config.sites {
-            guard (try? Resolver.resolve(site, in: catalog))?.profile.directory == profile.directory,
+            guard let target = try? Placement.resolve(site, in: lists),
+                  ProfileID(target.browser, target.profile.directory) == profile,
                   let prefix = site.match.first(where: { URLPrefix.matches(url, prefix: $0) })
             else { continue }
             if prefix.count > best?.length ?? -1 {

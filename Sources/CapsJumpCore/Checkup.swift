@@ -1,6 +1,6 @@
-// What `capsjump check` reports about the config and Chrome's profiles: every problem,
-// for each site the profile and window label it resolves to, and for each key what it
-// does: the app it finds, the site, the window position, or the app that opens its link.
+// What `capsjump check` reports about the config and the browsers' profiles: every problem,
+// for each site the profile and window label it resolves to (and its browser, when it isn't
+// Chrome or Brave has the name too), and for each key what it does: the app it finds, the site, the window position, or the app that opens its link.
 // Each site's and key's finding is its own function, which the editing window shows beside
 // its row. The disk and the link handlers are injected, so every line is tested. Whether
 // the file is in the layout CapsJump writes is a note of its own, apart from `run`, which
@@ -40,8 +40,8 @@ public struct Lookup: Sendable {
 }
 
 public enum Checkup {
-    /// `configText` and `localState` are nil when their files are missing.
-    public static func run(configText: String?, configPath: String, localState: Data?, localStatePath: String, lookup: Lookup) -> [Finding] {
+    /// `configText` is nil when the file is missing.
+    public static func run(configText: String?, configPath: String, lists: ProfileLists, lookup: Lookup) -> [Finding] {
         guard let configText else {
             return [Finding(.problem, "no config at \(configPath); run `capsjump init`")]
         }
@@ -54,7 +54,7 @@ public enum Checkup {
         if config.sites.isEmpty && config.keys.isEmpty {
             return [Finding(.note, "\(configPath) has no sites or keys yet")]
         }
-        return sites(config, localState: localState, localStatePath: localStatePath) + keys(config, lookup: lookup)
+        return sites(config, lists: lists) + keys(config, lookup: lookup)
     }
 
     /// A note when the file reads fine but isn't laid out as CapsJump writes it; nil when it
@@ -98,33 +98,49 @@ public enum Checkup {
         }
     }
 
-    private static func sites(_ config: Config, localState: Data?, localStatePath: String) -> [Finding] {
-        guard !config.sites.isEmpty else { return [] }
-        guard let localState else {
-            return [Finding(.problem, "Chrome's profile list is missing at \(localStatePath); has Chrome been opened on this Mac?")]
+    /// Each site's line, in file order; a profile list that stops sites is one problem, in
+    /// place of their lines.
+    private static func sites(_ config: Config, lists: ProfileLists) -> [Finding] {
+        var findings: [Finding] = []
+        for site in config.sites {
+            do {
+                findings.append(line(site, try Placement.resolve(site, in: lists), lists))
+            } catch {
+                guard case let .lists(problems) = error else {
+                    findings.append(Finding(.problem, "\(site.name): \(error)"))
+                    continue
+                }
+                for problem in problems.map({ Finding(.problem, $0) }) where !findings.contains(problem) {
+                    findings.append(problem)
+                }
+            }
         }
-        let catalog: ProfileCatalog
-        do {
-            catalog = try ProfileCatalog.parse(localState: localState)
-        } catch {
-            return [Finding(.problem, error.description)]
-        }
-        return config.sites.map { site($0, catalog: catalog) }
+        return findings
     }
 
-    /// Where one site lands: its profile and window label, or why it can't.
-    public static func site(_ site: Site, catalog: ProfileCatalog) -> Finding {
+    /// Where one site lands: its browser, profile and window label, or why it can't.
+    public static func site(_ site: Site, in lists: ProfileLists) -> Finding {
         do {
-            let target = try Resolver.resolve(site, in: catalog)
-            let line = "\(site.name) → \(target.profile.directory), windows labelled “\(target.label)”"
-            guard target.canFocus else {
-                let others = target.sharedLabelWith.map(\.directory).joined(separator: ", ")
-                return Finding(.note, "\(line); always opens a new tab, because \(others) carries the same label")
-            }
-            return Finding(.ok, line)
+            return line(site, try Placement.resolve(site, in: lists), lists)
         } catch {
             return Finding(.problem, "\(site.name): \(error)")
         }
+    }
+
+    private static func line(_ site: Site, _ target: Target, _ lists: ProfileLists) -> Finding {
+        let alsoIn = Placement.sameName(as: target, in: lists)
+        let browser = target.browser == .chrome && alsoIn.isEmpty ? "" : "\(target.browser), "
+        var notes: [String] = []
+        if !alsoIn.isEmpty {
+            let names = alsoIn.map(\.name).joined(separator: " and ")
+            notes.append("\(names) has a profile named “\(site.account ?? "")” too, and a name in both opens in \(target.browser)")
+        }
+        if !target.canFocus {
+            let others = target.sharedLabelWith.map(\.directory).joined(separator: ", ")
+            notes.append("always opens a new tab, because \(others) carries the same label")
+        }
+        let line = "\(site.name) → \(browser)\(target.profile.directory), windows labelled “\(target.label)”"
+        return notes.isEmpty ? Finding(.ok, line) : Finding(.note, ([line] + notes).joined(separator: "; "))
     }
 }
 

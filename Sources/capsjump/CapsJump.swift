@@ -1,4 +1,4 @@
-// The capsjump command: writes, checks and tidies the config, lists Chrome's profiles, and
+// The capsjump command: writes, checks and tidies the config, lists Chrome's and Brave's profiles, and
 // hands links to CapsJump.app. It never talks to Chrome itself: the app holds the
 // permissions, so `jump` and `setup` go through macOS's link handling to it. `check` also
 // reads whether the app runs and whether Caps Lock is mapped, the two things the keys need;
@@ -32,7 +32,7 @@ struct Init: ParsableCommand {
         guard !FileManager.default.fileExists(atPath: path.path) else {
             throw ValidationError("\(path.path) already exists; it was left as it is")
         }
-        let catalog = try? Inputs.profiles()
+        let catalog = Inputs.catalog(for: .chrome).catalog
         try ConfigFile(url: path).write(StarterConfig.config(catalog: catalog), replacing: nil)
         print("wrote \(path.path)")
         if catalog == nil {
@@ -43,24 +43,45 @@ struct Init: ParsableCommand {
 }
 
 struct Profiles: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "List Chrome's profiles: folder, account and window label.")
+    static let configuration = CommandConfiguration(abstract: "List Chrome's profiles, then Brave's: folder, account and window label.")
 
-    @Flag(help: "Print JSON: each profile's folder, account (null when nobody is signed in), name, window label, the folders sharing that label, and the fields a site in it writes.")
+    @Flag(help: "Print JSON: each profile's browser, folder, account (null when nobody is signed in), name, window label, the folders sharing that label, and the fields a site in it writes (null when Chrome has a profile of the same name).")
     var json = false
 
     func run() throws {
-        let catalog = try Inputs.profiles()
+        let lists = Inputs.lists()
+        // A browser that isn't installed goes unmentioned.
+        let problems = Browser.known.compactMap { lists[$0] == .notInstalled ? nil : lists[$0].problem(for: $0) }
+        guard !lists.catalogs.isEmpty else {
+            throw ValidationError(problems.isEmpty ? "neither Chrome nor Brave is installed" : problems.joined(separator: "; "))
+        }
         if json {
-            print(try JSONOutput.render(catalog.listing))
+            print(try JSONOutput.render(lists.listing))
             return
         }
-        let rows = catalog.profiles.map { profile in
-            [profile.directory, profile.email.isEmpty ? "(not signed in)" : profile.email, profile.name,
-             profile.windowLabel + (catalog.sharingLabel(with: profile).isEmpty ? "" : "  *")]
+        let withBrowser = lists.catalogs.contains { $0.browser != .chrome }
+        var shared = false, elsewhere = false
+        let rows = lists.catalogs.flatMap { catalog in
+            catalog.profiles.map { profile in
+                let sharesLabel = !catalog.sharingLabel(with: profile).isEmpty
+                let opensElsewhere = Placement.openingElsewhere(profile, in: catalog, lists: lists) != nil
+                shared = shared || sharesLabel
+                elsewhere = elsewhere || opensElsewhere
+                let row = [profile.directory, profile.email.isEmpty ? "(not signed in)" : profile.email, profile.name,
+                           profile.windowLabel + (sharesLabel ? "  *" : "") + (opensElsewhere ? "  †" : "")]
+                return withBrowser ? [catalog.browser.name] + row : row
+            }
         }
-        print(Table.render(header: ["FOLDER", "ACCOUNT", "NAME", "WINDOW LABEL"], rows: rows))
-        if catalog.profiles.contains(where: { !catalog.sharingLabel(with: $0).isEmpty }) {
+        let header = ["FOLDER", "ACCOUNT", "NAME", "WINDOW LABEL"]
+        print(Table.render(header: withBrowser ? ["BROWSER"] + header : header, rows: rows))
+        if shared {
             print("\n* shared by two profiles: their windows can't be told apart, so their sites always open a new tab")
+        }
+        if elsewhere {
+            print("\n† Chrome has a profile of the same name, and a name in both opens in Chrome; rename one to use this one")
+        }
+        for problem in problems {
+            print("\nnote: \(problem)")
         }
     }
 }
@@ -73,13 +94,11 @@ struct Check: ParsableCommand {
 
     func run() throws {
         let configPath = Paths.config()
-        let statePath = Paths.chromeLocalState()
         let configText = try? String(contentsOf: configPath, encoding: .utf8)
         var file = Checkup.run(
             configText: configText,
             configPath: configPath.path,
-            localState: FileManager.default.contents(atPath: statePath.path),
-            localStatePath: statePath.path,
+            lists: Inputs.lists(),
             lookup: Lookup.thisMac
         )
         if let layout = Checkup.layout(configText: configText, configPath: configPath.path) {

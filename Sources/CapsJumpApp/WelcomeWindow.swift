@@ -122,7 +122,7 @@ final class WelcomeModel: ObservableObject {
     /// Writes the starter file, unless one appeared since the window last looked.
     func turnOnStarterKeys() {
         do {
-            try ConfigFile().write(StarterConfig.config(catalog: try? Inputs.profiles()), replacing: nil)
+            try ConfigFile().write(StarterConfig.config(catalog: Inputs.catalog(for: .chrome).catalog), replacing: nil)
             keysProblem = nil
         } catch {
             if case .changedOnDisk = error {

@@ -1,5 +1,6 @@
-// One jump, live: read the config and Chrome's profiles afresh (so edits need no reload),
-// gather Chrome's windows and titles, let Core decide, and carry the decision out. An open
+// One jump, live: read the config and every browser's profiles afresh (so edits need no
+// reload), gather the site's browser's windows and titles, let Core decide, and carry the
+// decision out. An open
 // ends once a jump to the site would find the page's tab, so the next key lands on it.
 
 import AppKit
@@ -24,9 +25,9 @@ public enum JumpError: LocalizedError, Equatable, CustomStringConvertible {
     case unreadable(path: String, reason: String)
     case config(ConfigError)
     case unknownSite(String, known: [String])
-    case profiles(String)
-    case resolve(site: String, ResolveError)
-    case chrome(site: String, ChromeError)
+    case place(site: String, PlaceError)
+    /// In the site's browser.
+    case chrome(site: String, browser: Browser, ChromeError)
 
     public var description: String {
         switch self {
@@ -38,12 +39,10 @@ public enum JumpError: LocalizedError, Equatable, CustomStringConvertible {
             "the config has problems (`capsjump check` lists them):\n\(error)"
         case let .unknownSite(name, known):
             "no site `\(name)` in the config" + (known.isEmpty ? "" : "; it has: \(known.joined(separator: ", "))")
-        case let .profiles(reason):
-            reason
-        case let .resolve(site, error):
+        case let .place(site, error):
             "\(site): \(error)"
-        case let .chrome(site, error):
-            "\(site): \(error)"
+        case let .chrome(site, browser, error):
+            "\(site): \(error.description(in: browser))"
         }
     }
 
@@ -68,14 +67,34 @@ public enum Inputs {
         }
     }
 
-    public static func profiles(at url: URL = Paths.chromeLocalState()) throws(JumpError) -> ProfileCatalog {
-        guard let data = FileManager.default.contents(atPath: url.path) else {
-            throw .profiles("Chrome's profile list is missing at \(url.path); has Chrome been opened on this Mac?")
+    /// Every browser's profile list, read afresh.
+    public static func lists() -> ProfileLists {
+        ProfileLists { catalog(for: $0) }
+    }
+
+    /// The browser's profile list, or why it can't be used: not installed (its folder may
+    /// outlive it), missing, refused by macOS, or not a profile list.
+    public static func catalog(
+        for browser: Browser,
+        home: URL = FileManager.default.homeDirectoryForCurrentUser,
+        installed: (Browser) -> Bool = { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0.bundleID) != nil }
+    ) -> CatalogRead {
+        guard installed(browser) else { return .notInstalled }
+        let url = browser.localState(home: home)
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            return .missing(path: url.path)
+        } catch let error as CocoaError where error.code == .fileReadNoPermission {
+            return .refused(path: url.path)
+        } catch {
+            return .unreadable("\(browser)'s profile list at \(url.path) can't be read: \(error.localizedDescription)")
         }
         do {
-            return try ProfileCatalog.parse(localState: data)
+            return .read(try ProfileCatalog.parse(localState: data, browser: browser))
         } catch {
-            throw .profiles(error.description)
+            return .unreadable(error.description)
         }
     }
 }
@@ -92,9 +111,10 @@ public final class Jumper {
     private static let tabReads = 16
     private static let tabPause = Duration.milliseconds(50)
 
-    private var scripting: ChromeScripting?
-    /// Runs before a focus asks macOS to bring Chrome forward; what it returns runs once
-    /// the landing check has ended. The app uses it to make its request one macOS honours.
+    /// One compiled script per browser.
+    private var scripting: [Browser: ChromeScripting] = [:]
+    /// Runs before a focus asks macOS to bring the browser forward; what it returns runs
+    /// once the landing check has ended. The app uses it to make its request one macOS honours.
     private let activating: @MainActor () -> @MainActor () -> Void
 
     public init(activating: @escaping @MainActor () -> @MainActor () -> Void = { {} }) {
@@ -106,17 +126,16 @@ public final class Jumper {
         guard let site = config.site(named: name) else {
             throw .unknownSite(name, known: config.sites.map(\.name))
         }
-        let catalog = try Inputs.profiles()
         let target: Target
         do {
-            target = try Resolver.resolve(site, in: catalog)
+            target = try Placement.resolve(site, in: Inputs.lists())
         } catch {
-            throw .resolve(site: name, error)
+            throw .place(site: name, error)
         }
         do {
             return try await perform(target)
         } catch {
-            throw .chrome(site: name, error)
+            throw .chrome(site: name, browser: target.browser, error)
         }
     }
 
@@ -129,16 +148,17 @@ public final class Jumper {
     }
 
     private func read(_ target: Target) throws(ChromeError) -> Reading {
-        let chrome = ChromeLauncher.runningChrome
+        let browser = target.browser
+        let chrome = ChromeLauncher.running(browser)
         var windows: [ChromeWindow] = []
         var axWindows: [AXWindow] = []
         var scripting: ChromeScripting?
         if let chrome, target.canFocus {
             axWindows = try ChromeAccessibility.windows(of: chrome)
-            if self.scripting == nil {
-                self.scripting = try ChromeScripting()
+            if self.scripting[browser] == nil {
+                self.scripting[browser] = try ChromeScripting(browser: browser)
             }
-            scripting = self.scripting
+            scripting = self.scripting[browser]
             windows = try scripting?.windows() ?? []
         }
 
@@ -189,7 +209,7 @@ public final class Jumper {
             if let missed { throw .notInFront(missed) }
             return .focused(site: target.site.name, windowID: windowID, tabIndex: tabIndex)
         case let .open(profileDirectory, url, reason):
-            try await ChromeLauncher.open(url, profileDirectory: profileDirectory)
+            try await ChromeLauncher.open(url, in: target.browser, profileDirectory: profileDirectory)
             // Chrome can show the new tab a moment after the open returns; a key pressed
             // meanwhile would open the page twice. The jump ends once a jump would find it.
             await Handover.waitForTab(target: target, reads: Self.tabReads, decide: { try? self.read(target).action }) {

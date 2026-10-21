@@ -24,12 +24,13 @@ public enum Permissions {
         AXIsProcessTrusted() ? .granted : .denied
     }
 
-    /// Whether CapsJump may send Chrome Apple Events; with `ask`, macOS shows its
-    /// request without any command reaching Chrome. Blocks while the request is up, so it
-    /// runs off the main thread.
-    public static func automation(ask: Bool) async -> PermissionState {
-        await Task.detached {
-            let target = NSAppleEventDescriptor(bundleIdentifier: Identity.chromeBundleID)
+    /// Whether CapsJump may send the browser Apple Events; with `ask`, macOS shows its
+    /// request without any command reaching the browser. Blocks while the request is up,
+    /// so it runs off the main thread.
+    public static func automation(of browser: Browser = .chrome, ask: Bool) async -> PermissionState {
+        let bundleID = browser.bundleID
+        return await Task.detached {
+            let target = NSAppleEventDescriptor(bundleIdentifier: bundleID)
             let status = AEDeterminePermissionToAutomateTarget(target.aeDesc, typeWildCard, typeWildCard, ask)
             switch status {
             case noErr: return PermissionState.granted

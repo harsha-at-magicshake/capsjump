@@ -1,10 +1,15 @@
-// What `capsjump profiles --json` prints for each profile: no account when nobody is signed
-// in (never a placeholder), the folders that share its window label, and the fields a site
-// in it writes, which are `SiteAccount.fields`, the rule the window and the starter use.
+// What `capsjump profiles --json` prints for each profile: its browser, no account when
+// nobody is signed in (never a placeholder), the folders that share its window label, and
+// the fields a site in it writes, which are `SiteAccount.fields`, the rule the window and
+// the starter use, or none when Chrome has a profile of its name.
 
 import Foundation
 import Testing
 @testable import CapsJumpCore
+
+private extension ProfileCatalog {
+    var listing: ProfileListing { lists([browser: .read(self)]).listing }
+}
 
 @Suite struct ProfileListingTests {
     @Test func listsEachProfileInChromeOrder() throws {
@@ -13,7 +18,7 @@ import Testing
         #expect(listing.profiles.map(\.folder) == c.profiles.map(\.directory))
         let first = try #require(listing.profiles.first)
         #expect(first == ProfileListing.Entry(
-            folder: "Profile 1", account: "alex@acme.dev", name: "acme.dev", windowLabel: "Alex (acme.dev)",
+            browser: "chrome", folder: "Profile 1", account: "alex@acme.dev", name: "acme.dev", windowLabel: "Alex (acme.dev)",
             sharedWith: [], site: .init(account: "alex@acme.dev", profile: "Profile 1")
         ))
     }
@@ -48,6 +53,7 @@ import Testing
           "profiles" : [
             {
               "account" : null,
+              "browser" : "chrome",
               "folder" : "Default",
               "name" : "Home",
               "sharedWith" : [
@@ -61,5 +67,16 @@ import Testing
           ]
         }
         """)
+    }
+
+    @Test func braveFollowsChromeAndANameInBothHasNoSite() throws {
+        let both = lists([
+            .chrome: read(#"{"profile": {"info_cache": {"Default": {"name": "Work"}}}}"#),
+            .brave: read(#"{"profile": {"info_cache": {"Default": {"name": "Work"}, "Profile 5": {"name": "Parents"}}}}"#, .brave),
+        ])
+        let listing = both.listing.profiles
+        #expect(listing.map(\.browser) == ["chrome", "brave", "brave"])
+        #expect(listing.map(\.site) == [.init(account: "Work", profile: nil), nil, .init(account: "Parents", profile: nil)])
+        #expect(try JSONOutput.render(both.listing).contains(#""site" : null"#))
     }
 }

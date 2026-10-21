@@ -104,6 +104,15 @@ private let lee = "lee@initech.com"
         #expect(WindowPairing.windows(labelled: "Alex (globex.io)", chrome: chrome, titles: titles, pairing: pairing).count == 1)
     }
 
+    @Test func braveEndsItsTitlesWithAHyphenAndTheLabel() {
+        let brave = [window("1", "Inbox - Gmail"), window("2", "Sign in")]
+        let titles = ["Inbox - Gmail - Brave - Parents", "Sign in - Brave - Work"]
+        let pairing = WindowPairing.pair(chrome: brave, titles: titles)
+        #expect(WindowPairing.windows(labelled: "Parents", chrome: brave, titles: titles, pairing: pairing).map(\.window.id) == ["1"])
+        #expect(WindowPairing.windows(labelled: "Work", chrome: brave, titles: titles, pairing: pairing).map(\.window.id) == ["2"])
+        #expect(WindowPairing.windows(labelled: "Brave", chrome: brave, titles: titles, pairing: pairing).isEmpty)
+    }
+
     @Test func namelessWindowPairsWithNothingAndHarmsNoOne() {
         let chrome = [window("1", ""), window("2", "GitHub")]
         let titles = [title("Untitled", kim), title("GitHub", acme)]

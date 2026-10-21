@@ -27,7 +27,7 @@ public enum Action: Sendable, Equatable {
 }
 
 public enum OpenReason: String, Sendable, Equatable {
-    case chromeNotRunning = "Chrome is not running"
+    case chromeNotRunning = "the browser is not running"
     case sharedLabel = "another profile's windows carry the same label"
     case noMatchingTab = "no open tab matches"
 }

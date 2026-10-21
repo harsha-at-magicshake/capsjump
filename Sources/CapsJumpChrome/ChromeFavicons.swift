@@ -34,9 +34,9 @@ public enum ChromeFavicons {
     /// The largest icon kept, in pixels; Chrome keeps 16 and 32 for a page's favicon.
     static let largest = 64
 
-    /// The `Favicons` file of a Chrome profile folder such as `Profile 1`.
-    public static func file(profile: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
-        Paths.chromeData(home: home).appendingPathComponent(profile).appendingPathComponent("Favicons")
+    /// The `Favicons` file of a profile folder such as `Profile 1`.
+    public static func file(browser: Browser = .chrome, profile: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+        browser.profileFolder(profile, home: home).appendingPathComponent("Favicons")
     }
 
     /// The PNG Chrome keeps for the lookup's page, else the one most pages under its

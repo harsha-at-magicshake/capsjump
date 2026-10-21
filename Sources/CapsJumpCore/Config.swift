@@ -1,5 +1,5 @@
 // The config file, ~/.capsjump.yaml. `sites:` holds one entry per site, naming the link
-// (capsjump://<name>), the Chrome account it lives in, the page to open and the URL
+// (capsjump://<name>), the account it lives in (Chrome's or Brave's), the page to open and the URL
 // prefixes that count as already open. `keys:` binds Caps Lock + a key to one action.
 // Parsing reads the YAML tree itself (`ConfigReader`) rather than decoding with Codable,
 // because Codable ignores unknown keys and a typo such as `acount:` must be refused, not

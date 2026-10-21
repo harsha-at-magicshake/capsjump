@@ -20,7 +20,7 @@ public enum WelcomeWording {
 
     /// What a key did, once it ran without a failure; `frontApp` is the app whose window a
     /// move moved.
-    public static func worked(_ action: KeyAction, frontApp: String?) -> String {
+    public static func worked(_ action: KeyAction, frontApp: String?, browser: Browser = .chrome) -> String {
         switch action {
         case let .window(position):
             "\(frontApp.map { "\($0)'s window" } ?? "The window") moved to \(EditorRows.positionSpoken(position))."
@@ -30,7 +30,7 @@ public enum WelcomeWording {
             case let .path(path): "\(EditorRows.appName(path)) came forward."
             }
         case let .site(name):
-            "\(name) is in front, in its Chrome account."
+            "\(name) is in front, in its \(browser) account."
         case .url:
             "The link opened."
         }

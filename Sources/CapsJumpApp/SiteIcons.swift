@@ -14,9 +14,9 @@ import CapsJumpCore
 import OSLog
 import SwiftUI
 
-/// What a site's icon is read by: the Chrome profile folder and what to ask in it.
+/// What a site's icon is read by: the browser, its profile folder and what to ask in it.
 struct SiteIconKey: Hashable, Sendable {
-    let profile: String
+    let profile: ProfileID
     let lookup: SiteIcon.Lookup
 }
 
@@ -45,7 +45,7 @@ enum SiteIcons {
 
     static func icon(_ key: SiteIconKey) async -> SiteIconImage? {
         if let known = cache[key] { return known }
-        let file = ChromeFavicons.file(profile: key.profile)
+        let file = ChromeFavicons.file(browser: key.profile.browser, profile: key.profile.directory)
         let lookup = key.lookup
         let result = await Task.detached(priority: .userInitiated) { () -> Result<(Data, IconTone), ChromeFavicons.Missing> in
             ChromeFavicons.icon(for: lookup, in: file).flatMap { data in

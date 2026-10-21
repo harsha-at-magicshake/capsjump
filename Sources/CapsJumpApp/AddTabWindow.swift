@@ -1,6 +1,6 @@
-// Add Current Tab: the tab in front of Chrome becomes a site with a key, in one small
-// window. The page and its account come from Chrome, the name from the page's host, and a
-// free key is offered; every field is judged by the config's own rules through a
+// Add Current Tab: the tab in front of Chrome or Brave becomes a site with a key, in one
+// small window. The page and its account come from that browser, the name from the page's
+// host, and a free key is offered; every field is judged by the config's own rules through a
 // ConfigDraft, so a problem shows under its field while it's typed. When the page is
 // already a site in that account, the window offers that site a key instead. Saving goes
 // through ConfigFile, so it applies at once, as saving the file does; a file in a layout of
@@ -23,17 +23,17 @@ final class AddTabModel: ObservableObject {
 
     @Published private(set) var draft: ConfigDraft
     @Published private(set) var keyRow: Int?
-    @Published var profileDirectory: String? {
+    @Published var profile: ProfileID? {
         didSet { pickProfile() }
     }
     let subject: Subject
-    let catalog: ProfileCatalog?
+    let lists: ProfileLists
 
-    init(draft: ConfigDraft, subject: Subject, catalog: ProfileCatalog?, profile: ChromeProfile?) {
+    init(draft: ConfigDraft, subject: Subject, lists: ProfileLists, profile: ProfileID?) {
         self.draft = draft
         self.subject = subject
-        self.catalog = catalog
-        profileDirectory = profile?.directory
+        self.lists = lists
+        self.profile = profile
         pickProfile()
         key = TabCapture.suggestedKey(for: siteName, free: draft.freeKeys())
     }
@@ -59,7 +59,7 @@ final class AddTabModel: ObservableObject {
         set { updateSite { $0.open = newValue } }
     }
 
-    /// The account typed by hand, when Chrome's profile list can't be read.
+    /// The account typed by hand, when no browser's profile list can be read.
     var account: String {
         get { newSite?.account ?? "" }
         set { updateSite { $0.account = newValue } }
@@ -107,8 +107,8 @@ final class AddTabModel: ObservableObject {
 
     /// Where the site lands, once it is valid: "Profile 1, windows labelled “Alex (acme.dev)”".
     var landing: String? {
-        guard let catalog, let site = draft.config?.site(named: siteName) else { return nil }
-        let text = Checkup.site(site, catalog: catalog).text
+        guard !lists.catalogs.isEmpty, let site = draft.config?.site(named: siteName) else { return nil }
+        let text = Checkup.site(site, in: lists).text
         return text.components(separatedBy: " → ").dropFirst().joined(separator: " → ")
     }
 
@@ -127,7 +127,7 @@ final class AddTabModel: ObservableObject {
     }
 
     private func pickProfile() {
-        guard let catalog, let directory = profileDirectory, let profile = catalog.profile(directory: directory) else { return }
+        guard let id = profile, let (profile, catalog) = lists.profile(id) else { return }
         let fields = SiteAccount.fields(for: profile, in: catalog)
         updateSite {
             $0.account = fields.account
@@ -155,10 +155,10 @@ struct AddTabView: View {
                         problems: model.problems(.name)
                     )
                     VStack(alignment: .leading, spacing: 4) {
-                        if let catalog = model.catalog {
+                        if !model.lists.catalogs.isEmpty {
                             AccountPicker(
-                                selection: Binding(get: { model.profileDirectory }, set: { directory in afterUpdate { model.profileDirectory = directory } }),
-                                profiles: catalog.profiles
+                                selection: Binding(get: { model.profile }, set: { profile in afterUpdate { model.profile = profile } }),
+                                lists: model.lists
                             )
                         } else {
                             TextField("Account", text: $model.account, prompt: Text("you@work.com"))
@@ -222,13 +222,13 @@ final class AddTab: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var expected: String?
 
-    func open(_ tab: FrontTab?) {
+    func open(_ tab: FrontTab?, browser: Browser = .chrome) {
         if let window {
             AppWindows.show(window)
             return
         }
         guard let tab else {
-            Alerts.show("Chrome has no window open", "Open the page you want a key for, then try again.")
+            Alerts.show("\(browser) has no window open", "Open the page you want a key for, then try again.")
             return
         }
         guard let page = TabCapture.page(tab.url) else {
@@ -261,17 +261,17 @@ final class AddTab: NSObject, NSWindowDelegate {
         }
         expected = contents?.text
 
-        let catalog = try? Inputs.profiles()
-        let profile = catalog?.profile(forTitle: tab.title)
+        let lists = Inputs.lists()
+        let profile = lists[browser].catalog?.profile(forTitle: tab.title).map { ProfileID(browser, $0.directory) }
         var draft = ConfigDraft(contents.map { ConfigReader.read($0.text) } ?? ConfigSource())
         let subject: AddTabModel.Subject
-        if let catalog, let profile, let site = TabCapture.existingSite(for: tab.url, profile: profile, in: config, catalog: catalog) {
+        if let profile, let site = TabCapture.existingSite(for: tab.url, profile: profile, in: config, lists: lists) {
             subject = .existing(name: site.name)
         } else {
             let name = TabCapture.suggestedName(for: page, taken: Set(config.sites.map(\.name)))
             subject = .newSite(id: draft.addSite(SiteSource(index: draft.sites.count, name: name, open: page.absoluteString)))
         }
-        let model = AddTabModel(draft: draft, subject: subject, catalog: catalog, profile: profile)
+        let model = AddTabModel(draft: draft, subject: subject, lists: lists, profile: profile)
         let view = AddTabView(
             model: model,
             onCancel: { [weak self] in self?.window?.close() },

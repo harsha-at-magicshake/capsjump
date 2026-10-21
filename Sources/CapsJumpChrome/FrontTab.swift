@@ -19,11 +19,12 @@ public struct FrontTab: Sendable, Equatable {
 
 @MainActor
 public enum FrontTabReader {
-    /// The active tab of Chrome's front window; nil when Chrome isn't running or shows no window.
-    public static func read() throws(ChromeError) -> FrontTab? {
-        guard let chrome = ChromeLauncher.runningChrome else { return nil }
-        let axWindows = try ChromeAccessibility.windows(of: chrome)
-        let scripting = try ChromeScripting()
+    /// The active tab of the browser's front window; nil when it isn't running or shows no
+    /// window.
+    public static func read(browser: Browser = .chrome) throws(ChromeError) -> FrontTab? {
+        guard let app = ChromeLauncher.running(browser) else { return nil }
+        let axWindows = try ChromeAccessibility.windows(of: app)
+        let scripting = try ChromeScripting(browser: browser)
         let windows = try scripting.windows()
         guard let front = windows.first else { return nil }
         let tabs = try scripting.tabs(windowID: front.id)
