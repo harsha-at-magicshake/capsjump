@@ -165,10 +165,10 @@ struct SiteEditor: View, Equatable {
     private var account: some View {
         let id = form.id
         VStack(alignment: .leading, spacing: 4) {
-            if let profiles = form.profiles {
+            if !form.lists.catalogs.isEmpty {
                 AccountPicker(
                     selection: Binding(get: { form.profile }, set: { profile in afterUpdate { model.setProfile(id, profile) } }),
-                    profiles: profiles
+                    lists: form.lists
                 )
             } else {
                 TextField("Account", text: Binding(get: { form.site.account ?? "" }, set: { value in model.update(id) { $0.account = value } }), prompt: Text("you@work.com"))

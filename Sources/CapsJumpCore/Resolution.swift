@@ -1,5 +1,5 @@
-// From a site in the config to the Chrome profile it lives in and the label that profile's
-// window titles end with.
+// From a site in the config to the profile it lives in, inside the browser `Placement`
+// picked, and the label that profile's window titles end with.
 
 import Foundation
 
@@ -12,6 +12,15 @@ public struct Target: Sendable, Equatable {
     /// Whether it is the only profile. Chrome then leaves the label off its titles, so
     /// every window is this profile's.
     public let onlyProfile: Bool
+    public let browser: Browser
+
+    public init(site: Site, profile: ChromeProfile, sharedLabelWith: [ChromeProfile], onlyProfile: Bool, browser: Browser) {
+        self.site = site
+        self.profile = profile
+        self.sharedLabelWith = sharedLabelWith
+        self.onlyProfile = onlyProfile
+        self.browser = browser
+    }
 
     public var label: String { profile.windowLabel }
     public var canFocus: Bool { sharedLabelWith.isEmpty }
@@ -19,15 +28,15 @@ public struct Target: Sendable, Equatable {
 
 public enum ResolveError: Error, Equatable, CustomStringConvertible {
     case account(ProfileCatalog.LookupError)
-    case unknownProfile(directory: String, known: [String])
+    case unknownProfile(directory: String, known: [String], browser: String)
     case accountMismatch(account: String, directory: String)
 
     public var description: String {
         switch self {
         case let .account(error):
             error.description
-        case let .unknownProfile(directory, known):
-            "no Chrome profile folder `\(directory)`; this Mac has: \(known.joined(separator: ", "))"
+        case let .unknownProfile(directory, known, browser):
+            "no \(browser) profile folder `\(directory)`; this Mac has: \(known.joined(separator: ", "))"
         case let .accountMismatch(account, directory):
             "`\(directory)` is not the account `\(account)`; fix one of them"
         }
@@ -41,7 +50,7 @@ public enum Resolver {
         let profile: ChromeProfile
         if let directory = site.profile {
             guard let found = catalog.profile(directory: directory) else {
-                throw .unknownProfile(directory: directory, known: catalog.profiles.map(\.directory))
+                throw .unknownProfile(directory: directory, known: catalog.profiles.map(\.directory), browser: catalog.browser.name)
             }
             if let account = site.account?.lowercased(),
                found.email.lowercased() != account, found.name.lowercased() != account {
@@ -57,7 +66,7 @@ public enum Resolver {
         }
         return Target(
             site: site, profile: profile, sharedLabelWith: catalog.sharingLabel(with: profile),
-            onlyProfile: catalog.profiles.count == 1
+            onlyProfile: catalog.profiles.count == 1, browser: catalog.browser
         )
     }
 }

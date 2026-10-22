@@ -23,7 +23,8 @@ import Testing
         #expect(WelcomeWording.worked(.window(.maximize), frontApp: nil) == "The window moved to the whole screen.")
         #expect(WelcomeWording.worked(.app(.name("Terminal")), frontApp: nil) == "Terminal came forward.")
         #expect(WelcomeWording.worked(.app(.path("~/Applications/Obsidian.app")), frontApp: nil) == "Obsidian came forward.")
-        #expect(WelcomeWording.worked(.site("github"), frontApp: nil) == "github is in front, in its Chrome account.")
+        #expect(WelcomeWording.worked(.site("github"), frontApp: nil, browser: .chrome) == "github is in front, in its Chrome account.")
+        #expect(WelcomeWording.worked(.site("mail"), frontApp: nil, browser: .brave) == "mail is in front, in its Brave account.")
         #expect(WelcomeWording.worked(.url(URL(string: "slack://open")!), frontApp: nil) == "The link opened.")
     }
 

@@ -16,12 +16,15 @@ import CapsJumpCore
 import OSLog
 import SwiftUI
 
-/// What an account's picture is drawn from: the profile folder and what Chrome would draw.
+/// What an account's picture is drawn from: the browser, the profile folder and what the
+/// browser would draw.
 struct ProfilePictureKey: Hashable, Sendable {
+    let browser: Browser
     let profile: String
     let picture: ProfilePicture
 
-    init(_ profile: ChromeProfile) {
+    init(_ profile: ChromeProfile, browser: Browser) {
+        self.browser = browser
         self.profile = profile.directory
         picture = profile.picture
     }
@@ -48,7 +51,7 @@ enum ProfilePictures {
     static func picture(_ key: ProfilePictureKey) async -> NSImage? {
         if let known = cached(key) { return known }
         guard let name = key.picture.file else { return nil }
-        let file = ChromeProfilePicture.file(profile: key.profile, name: name)
+        let file = ChromeProfilePicture.file(browser: key.browser, profile: key.profile, name: name)
         let result = await Task.detached(priority: .userInitiated) { ChromeProfilePicture.picture(in: file) }.value
         var image: NSImage?
         switch result {
@@ -162,34 +165,54 @@ struct ProfilePictureView: View {
     }
 }
 
-/// A site's account picked from this Mac's Chrome profiles, each with its picture; the
-/// config window's site editor and Add Current Tab share it.
+/// A site's account picked from every browser's profiles, Chrome's first and each other
+/// browser's under its name, each with its picture; the config window's site editor and
+/// Add Current Tab share it. A profile whose name Chrome has too says the site opens in
+/// Chrome, so picking it never looks like it does what it doesn't.
 struct AccountPicker: View {
-    let selection: Binding<String?>
-    let profiles: [ChromeProfile]
-    @State private var images: [String: NSImage] = [:]
+    let selection: Binding<ProfileID?>
+    let lists: ProfileLists
+    @State private var images: [ProfileID: NSImage] = [:]
 
     private static let side: CGFloat = 16
 
     var body: some View {
         Picker("Account", selection: selection) {
-            Text("Choose…").tag(String?.none)
-            ForEach(profiles, id: \.directory) { profile in
-                Label {
-                    Text(Self.label(profile))
-                } icon: {
-                    Image(nsImage: images[profile.directory] ?? ProfilePictures.standIn(profile.picture, size: Self.side))
+            Text("Choose…").tag(ProfileID?.none)
+            ForEach(lists.catalogs, id: \.browser) { catalog in
+                if catalog.browser == .chrome {
+                    rows(catalog)
+                } else {
+                    Section(catalog.browser.name) { rows(catalog) }
                 }
-                .tag(Optional(profile.directory))
             }
         }
         // A menu draws images, not views, so every picture is read before it opens.
-        .task(id: profiles.map(ProfilePictureKey.init)) {
-            var read: [String: NSImage] = [:]
-            for profile in profiles {
-                read[profile.directory] = await ProfilePictures.menuImage(ProfilePictureKey(profile), size: Self.side)
+        .task(id: keys.map(\.key)) {
+            var read: [ProfileID: NSImage] = [:]
+            for (id, key) in keys {
+                read[id] = await ProfilePictures.menuImage(key, size: Self.side)
             }
             if !Task.isCancelled { images = read }
+        }
+    }
+
+    private func rows(_ catalog: ProfileCatalog) -> some View {
+        ForEach(catalog.profiles, id: \.directory) { profile in
+            let id = ProfileID(catalog.browser, profile.directory)
+            let elsewhere = Placement.openingElsewhere(profile, in: catalog, lists: lists)
+            Label {
+                Text(Self.label(profile) + (elsewhere.map { " — opens in \($0)" } ?? ""))
+            } icon: {
+                Image(nsImage: images[id] ?? ProfilePictures.standIn(profile.picture, size: Self.side))
+            }
+            .tag(Optional(id))
+        }
+    }
+
+    private var keys: [(id: ProfileID, key: ProfilePictureKey)] {
+        lists.catalogs.flatMap { catalog in
+            catalog.profiles.map { (ProfileID(catalog.browser, $0.directory), ProfilePictureKey($0, browser: catalog.browser)) }
         }
     }
 

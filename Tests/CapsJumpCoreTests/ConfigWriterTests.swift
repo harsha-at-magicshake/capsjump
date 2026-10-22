@@ -194,7 +194,7 @@ import Testing
     }
 
     @Test func starterNamesTheFolderWhenTheAccountIsShared() throws {
-        let catalog = ProfileCatalog(profiles: [
+        let catalog = chromeCatalog([
             ChromeProfile(directory: "Profile 9", name: "Work", email: "alex@acme.dev", givenName: "Alex"),
             ChromeProfile(directory: "Profile 1", name: "acme.dev", email: "alex@acme.dev", givenName: "Alex"),
         ])

@@ -21,7 +21,22 @@ let localState = """
 """
 
 func catalog() throws -> ProfileCatalog {
-    try ProfileCatalog.parse(localState: Data(localState.utf8))
+    try ProfileCatalog.parse(localState: Data(localState.utf8), browser: .chrome)
+}
+
+/// Chrome's list of these profiles.
+func chromeCatalog(_ profiles: [ChromeProfile]) -> ProfileCatalog {
+    ProfileCatalog(profiles: profiles, browser: .chrome)
+}
+
+/// A browser's list read from `json`.
+func read(_ json: String, _ browser: Browser = .chrome) -> CatalogRead {
+    .read(try! ProfileCatalog.parse(localState: Data(json.utf8), browser: browser))
+}
+
+/// Every browser's list; a browser left out is not installed.
+func lists(_ reads: [Browser: CatalogRead]) -> ProfileLists {
+    ProfileLists { reads[$0] ?? .notInstalled }
 }
 
 func site(_ name: String = "s", account: String? = nil, profile: String? = nil, open: String = "https://x.com/", match: [String] = ["x.com/"]) -> Site {
@@ -43,10 +58,10 @@ func site(_ name: String = "s", account: String? = nil, profile: String? = nil, 
     }
 
     @Test func refusesBadLocalState() {
-        #expect(throws: ProfileCatalog.ParseError.notJSON) { try ProfileCatalog.parse(localState: Data("nope".utf8)) }
-        #expect(throws: ProfileCatalog.ParseError.noProfiles) { try ProfileCatalog.parse(localState: Data("{}".utf8)) }
-        #expect(throws: ProfileCatalog.ParseError.noProfiles) {
-            try ProfileCatalog.parse(localState: Data(#"{"profile": {"info_cache": {}}}"#.utf8))
+        #expect(throws: ProfileCatalog.ParseError.notJSON("Chrome")) { try ProfileCatalog.parse(localState: Data("nope".utf8), browser: .chrome) }
+        #expect(throws: ProfileCatalog.ParseError.noProfiles("Chrome")) { try ProfileCatalog.parse(localState: Data("{}".utf8), browser: .chrome) }
+        #expect(throws: ProfileCatalog.ParseError.noProfiles("Chrome")) {
+            try ProfileCatalog.parse(localState: Data(#"{"profile": {"info_cache": {}}}"#.utf8), browser: .chrome)
         }
     }
 
@@ -83,13 +98,13 @@ func site(_ name: String = "s", account: String? = nil, profile: String? = nil, 
     }
 
     @Test func theOnlyProfileIsMarked() throws {
-        let one = ProfileCatalog(profiles: [ChromeProfile(directory: "Default", name: "Person 1", email: "", givenName: "")])
+        let one = chromeCatalog([ChromeProfile(directory: "Default", name: "Person 1", email: "", givenName: "")])
         #expect(try Resolver.resolve(site(profile: "Default"), in: one).onlyProfile)
         #expect(try !Resolver.resolve(site(account: "sam@globex.io"), in: catalog()).onlyProfile)
     }
 
     @Test func sharedLabelDisablesFocus() throws {
-        let c = ProfileCatalog(profiles: [
+        let c = chromeCatalog([
             ChromeProfile(directory: "A", name: "Work", email: "", givenName: ""),
             ChromeProfile(directory: "B", name: "Work", email: "", givenName: ""),
             ChromeProfile(directory: "C", name: "Home", email: "", givenName: ""),
@@ -103,7 +118,7 @@ func site(_ name: String = "s", account: String? = nil, profile: String? = nil, 
     /// The one profile parsed from an info_cache entry written as JSON.
     private func picture(_ entry: String) throws -> ProfilePicture {
         let json = #"{"profile": {"info_cache": {"Profile 1": "# + entry + "}}}"
-        return try #require(ProfileCatalog.parse(localState: Data(json.utf8)).profiles.first).picture
+        return try #require(ProfileCatalog.parse(localState: Data(json.utf8), browser: .chrome).profiles.first).picture
     }
 
     @Test func picturesByChromesRule() throws {
@@ -158,5 +173,21 @@ func site(_ name: String = "s", account: String? = nil, profile: String? = nil, 
         #expect(throws: Link.ParseError.unknownAction("_x")) { try Link.parse(URL(string: "capsjump://_x")!) }
         #expect(throws: Link.ParseError.self) { try Link.parse(URL(string: "tabjump://github")!) }
         #expect(throws: Link.ParseError.self) { try Link.parse(URL(string: "capsjump:")!) }
+    }
+
+    @Test func aBraveTitleNamesItsProfile() throws {
+        // As measured in Brave: "<page> - Brave - <profile>", a hyphen where Chrome has "–".
+        let brave = try ProfileCatalog.parse(localState: Data(#"{"profile": {"info_cache": {"Default": {"name": "Work"}, "Profile 5": {"name": "Parents"}}}}"#.utf8), browser: .brave)
+        #expect(brave.profile(forTitle: "Inbox (925) - Gmail - Brave - Parents")?.directory == "Profile 5")
+        #expect(brave.profile(forTitle: "Sign in is not complete - Brave - Work")?.directory == "Default")
+        #expect(brave.profile(forTitle: "Sign in - Brave - Home") == nil)
+    }
+
+    @Test func aMissingAccountNamesItsBrowser() throws {
+        let brave = try ProfileCatalog.parse(localState: Data(#"{"profile": {"info_cache": {"Default": {"name": "Work"}}}}"#.utf8), browser: .brave)
+        #expect(throws: ProfileCatalog.LookupError.notFound(account: "kim@initech.com", known: ["Work"], browser: "Brave")) {
+            try brave.profile(account: "kim@initech.com")
+        }
+        #expect(ProfileCatalog.LookupError.notFound(account: "x", known: ["Work"], browser: "Brave").description == "no Brave profile has the account `x`; this Mac has: Work")
     }
 }

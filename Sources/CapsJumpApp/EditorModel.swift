@@ -72,7 +72,8 @@ final class EditorModel: ObservableObject {
     var onChange: (@MainActor () -> Void)?
 
     let file = ConfigFile()
-    let catalog = try? Inputs.profiles()
+    /// Every browser's profiles, read once per opening of the window.
+    private(set) var lists = Inputs.lists()
     let lookup = Lookup.thisMac
     /// What the file held when read or last saved; nil when there was no file.
     private(set) var expected: String?
@@ -111,6 +112,7 @@ final class EditorModel: ObservableObject {
         query = ""
         SiteIcons.forget()
         ProfilePictures.forget()
+        lists = Inputs.lists()
         load()
         watch()
     }
@@ -162,7 +164,7 @@ final class EditorModel: ObservableObject {
             savedSource = draft.source
         } else {
             expected = nil
-            draft = ConfigDraft(ConfigReader.read(StarterConfig.render(catalog: catalog)))
+            draft = ConfigDraft(ConfigReader.read(StarterConfig.render(catalog: lists[.chrome].catalog)))
             savedSource = ConfigSource()
         }
         state = .editing
@@ -354,10 +356,11 @@ final class EditorModel: ObservableObject {
         edit { $0.updateSite(id, change) }
     }
 
-    func profile(of id: Int) -> String? {
-        guard let catalog, let site = draft.site(id)?.site else { return nil }
-        if let directory = site.profile { return directory }
-        return site.account.flatMap { try? catalog.profile(account: $0) }?.directory
+    /// The profile the row's account picks, in the browser that has it, as written.
+    func profile(of id: Int) -> ProfileID? {
+        guard let site = draft.site(id)?.site, let catalog = try? Placement.catalog(account: site.account, in: lists) else { return nil }
+        if let directory = site.profile { return ProfileID(catalog.browser, directory) }
+        return site.account.flatMap { try? catalog.profile(account: $0) }.map { ProfileID(catalog.browser, $0.directory) }
     }
 
     /// What the site's icon is read by: the profile it jumps into and its pages; nil while
@@ -371,12 +374,12 @@ final class EditorModel: ObservableObject {
     /// What the site's account picture is drawn from: the profile it jumps into, resolved
     /// as "Lands in" is; nil when no profile matches, which shows the account's text alone.
     func pictureKey(site id: Int) -> ProfilePictureKey? {
-        guard let catalog, let directory = profile(of: id), let profile = catalog.profile(directory: directory) else { return nil }
-        return ProfilePictureKey(profile)
+        guard let id = profile(of: id), let (profile, catalog) = lists.profile(id) else { return nil }
+        return ProfilePictureKey(profile, browser: catalog.browser)
     }
 
-    func setProfile(_ id: Int, _ directory: String?) {
-        guard let catalog, let directory, let profile = catalog.profile(directory: directory) else { return }
+    func setProfile(_ id: Int, _ picked: ProfileID?) {
+        guard let picked, let (profile, catalog) = lists.profile(picked) else { return }
         let fields = SiteAccount.fields(for: profile, in: catalog)
         edit {
             $0.updateSite(id) {
@@ -583,9 +586,9 @@ final class EditorModel: ObservableObject {
     struct SiteForm: Equatable, Sendable {
         let id: Int
         let site: SiteSource
-        /// The profile folder the account picks, when Chrome's list could be read.
-        let profile: String?
-        let profiles: [ChromeProfile]?
+        /// The profile the account picks, when a browser's list could be read.
+        let profile: ProfileID?
+        let lists: ProfileLists
         let landing: String?
         let keys: [String]
         let canAddKey: Bool
@@ -604,7 +607,7 @@ final class EditorModel: ObservableObject {
             id: id,
             site: site,
             profile: profile(of: id),
-            profiles: catalog?.profiles,
+            lists: lists,
             landing: landing(site: id),
             keys: draft.keysUsing(id),
             canAddKey: !(site.name ?? "").isEmpty && !draft.freeKeys().isEmpty,
@@ -634,8 +637,8 @@ final class EditorModel: ObservableObject {
 
     /// Where a site lands, once the whole config is valid.
     func landing(site id: Int) -> String? {
-        guard let catalog, let name = draft.site(id)?.site.name, let site = check.config?.site(named: name) else { return nil }
-        return Checkup.site(site, catalog: catalog).text.components(separatedBy: " → ").dropFirst().joined(separator: " → ")
+        guard let name = draft.site(id)?.site.name, let site = check.config?.site(named: name) else { return nil }
+        return Checkup.site(site, in: lists).text.components(separatedBy: " → ").dropFirst().joined(separator: " → ")
     }
 
     /// Where the app a key names is, as the keys would find it; asked once per app.

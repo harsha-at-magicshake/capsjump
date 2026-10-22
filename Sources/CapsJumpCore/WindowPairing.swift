@@ -4,8 +4,9 @@
 // a window can be focused only once the two are paired.
 //
 // Pairing is by title. Chrome shortens a long window name in the middle with "…", while
-// the Accessibility title is whole: `<page title> - Google Chrome – <profile label>`. A
-// Chrome window is compatible with a title that starts with its name's text before the
+// the Accessibility title is whole: `<page title> - Google Chrome – <profile label>`, or in
+// Brave `<page title> - Brave - <profile label>`. A
+// window is compatible with a title that starts with its name's text before the
 // "…", capped at 20 characters; a window with no name is compatible with none. Windows
 // and titles that are compatible, directly or through each other, form a group, and each
 // group is paired on its own:
@@ -42,9 +43,11 @@ public enum WindowPairing {
         return String(head.prefix(prefixCap))
     }
 
-    /// The ending that marks a title as one of the profile's windows.
-    public static func labelSuffix(_ label: String) -> String {
-        "\u{2013} \(label)"
+    /// Whether the title ends in the profile's label: after "–" as Chrome writes it, or
+    /// after " - ". Brave 1.97 wrote both: `<page> - Brave - <label>` on macOS 27, and
+    /// `<page> - Brave – <label>` on macOS 26.2 with several profiles.
+    public static func title(_ title: String, endsWithLabel label: String) -> Bool {
+        title.hasSuffix("\u{2013} \(label)") || title.hasSuffix(" - \(label)")
     }
 
     /// For each paired Chrome window id (Chrome reports ids as text), the index of its title in `titles`.
@@ -89,9 +92,8 @@ public enum WindowPairing {
 
     /// The profile's paired windows, front to back, each with its title's index.
     public static func windows(labelled label: String, chrome: [ChromeWindow], titles: [String], pairing: [String: Int]) -> [(window: ChromeWindow, title: Int)] {
-        let suffix = labelSuffix(label)
-        return chrome.compactMap { window in
-            guard let t = pairing[window.id], titles[t].hasSuffix(suffix) else { return nil }
+        chrome.compactMap { window in
+            guard let t = pairing[window.id], title(titles[t], endsWithLabel: label) else { return nil }
             return (window, t)
         }
     }

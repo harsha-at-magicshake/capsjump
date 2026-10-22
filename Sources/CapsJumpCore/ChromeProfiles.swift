@@ -76,34 +76,38 @@ public struct ProfilePicture: Sendable, Hashable {
 }
 
 public struct ProfileCatalog: Sendable, Equatable {
-    /// In Chrome's own order (its profile menu), or by folder when Chrome records none.
+    /// In the browser's own order (its profile menu), or by folder when it records none.
     public let profiles: [ChromeProfile]
+    /// The browser whose `Local State` this is.
+    public let browser: Browser
 
-    public init(profiles: [ChromeProfile]) {
+    public init(profiles: [ChromeProfile], browser: Browser) {
         self.profiles = profiles
+        self.browser = browser
     }
 
     public enum ParseError: Error, Equatable, CustomStringConvertible {
-        case notJSON
-        case noProfiles
+        /// Each with the browser's name.
+        case notJSON(String)
+        case noProfiles(String)
 
         public var description: String {
             switch self {
-            case .notJSON: "Chrome's Local State is not readable JSON"
-            case .noProfiles: "Chrome's Local State lists no profiles"
+            case let .notJSON(browser): "\(browser)'s Local State is not readable JSON"
+            case let .noProfiles(browser): "\(browser)'s Local State lists no profiles"
             }
         }
     }
 
-    /// Parses Chrome's `Local State` (JSON); only `profile.info_cache` and
+    /// Parses a browser's `Local State` (JSON); only `profile.info_cache` and
     /// `profile.profiles_order` are read, and of each profile its names and picture.
-    public static func parse(localState data: Data) throws(ParseError) -> ProfileCatalog {
+    public static func parse(localState data: Data, browser: Browser) throws(ParseError) -> ProfileCatalog {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw .notJSON
+            throw .notJSON(browser.name)
         }
         guard let profile = root["profile"] as? [String: Any],
               let cache = profile["info_cache"] as? [String: [String: Any]], !cache.isEmpty
-        else { throw .noProfiles }
+        else { throw .noProfiles(browser.name) }
 
         var profiles = cache.map { directory, info in
             ChromeProfile(
@@ -124,7 +128,7 @@ public struct ProfileCatalog: Sendable, Equatable {
             case (nil, nil): a.directory.localizedStandardCompare(b.directory) == .orderedAscending
             }
         }
-        return ProfileCatalog(profiles: profiles)
+        return ProfileCatalog(profiles: profiles, browser: browser)
     }
 
     public func profile(directory: String) -> ChromeProfile? {
@@ -144,7 +148,7 @@ public struct ProfileCatalog: Sendable, Equatable {
     public func profile(forTitle title: String?) -> ChromeProfile? {
         if profiles.count == 1 { return profiles[0] }
         guard let title else { return nil }
-        let fitting = profiles.filter { title.hasSuffix(WindowPairing.labelSuffix($0.windowLabel)) }
+        let fitting = profiles.filter { WindowPairing.title(title, endsWithLabel: $0.windowLabel) }
         guard let longest = fitting.max(by: { $0.windowLabel.count < $1.windowLabel.count }),
               sharingLabel(with: longest).isEmpty
         else { return nil }
@@ -152,13 +156,13 @@ public struct ProfileCatalog: Sendable, Equatable {
     }
 
     public enum LookupError: Error, Equatable, CustomStringConvertible {
-        case notFound(account: String, known: [String])
+        case notFound(account: String, known: [String], browser: String)
         case ambiguous(account: String, directories: [String])
 
         public var description: String {
             switch self {
-            case let .notFound(account, known):
-                "no Chrome profile has the account `\(account)`; this Mac has: \(known.joined(separator: ", "))"
+            case let .notFound(account, known, browser):
+                "no \(browser) profile has the account `\(account)`; this Mac has: \(known.joined(separator: ", "))"
             case let .ambiguous(account, directories):
                 "`\(account)` matches the profiles \(directories.map { "`\($0)`" }.joined(separator: " and ")); name one with `profile:`"
             }
@@ -177,19 +181,38 @@ public struct ProfileCatalog: Sendable, Equatable {
             }
             return candidates[0]
         }
-        throw .notFound(account: account, known: profiles.map { $0.email.isEmpty ? $0.name : $0.email })
+        throw .notFound(account: account, known: accounts, browser: browser.name)
+    }
+
+    /// Each profile's email, or its name when nobody is signed in.
+    public var accounts: [String] {
+        profiles.map { $0.email.isEmpty ? $0.name : $0.email }
+    }
+
+    /// Whether a profile has the account: one, or several for `profile:` to tell apart.
+    public func has(account: String) -> Bool {
+        do {
+            _ = try profile(account: account)
+            return true
+        } catch {
+            if case .ambiguous = error { return true }
+            return false
+        }
     }
 }
 
 /// The profiles as `capsjump profiles --json` prints them.
 public struct ProfileListing: Sendable, Equatable, Encodable {
     public struct Entry: Sendable, Equatable, Encodable {
-        /// What a site in this profile writes; `profile` is left out when the account alone lands there.
+        /// What a site in this profile writes; `profile` is left out when the account alone
+        /// lands there.
         public struct SiteFields: Sendable, Equatable, Encodable {
             public let account: String
             public let profile: String?
         }
 
+        /// `chrome` or `brave`.
+        public let browser: String
         public let folder: String
         /// The signed-in account's email; null, not left out, when nobody is signed in.
         public let account: String?
@@ -197,14 +220,16 @@ public struct ProfileListing: Sendable, Equatable, Encodable {
         public let windowLabel: String
         /// The other folders whose windows carry the same label.
         public let sharedWith: [String]
-        public let site: SiteFields
+        /// Null when no site can open in this profile: Chrome has a profile of its name.
+        public let site: SiteFields?
 
         private enum CodingKeys: String, CodingKey {
-            case folder, account, name, windowLabel, sharedWith, site
+            case browser, folder, account, name, windowLabel, sharedWith, site
         }
 
         public func encode(to encoder: any Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(browser, forKey: .browser)
             try container.encode(folder, forKey: .folder)
             try container.encode(account, forKey: .account)
             try container.encode(name, forKey: .name)
@@ -217,18 +242,23 @@ public struct ProfileListing: Sendable, Equatable, Encodable {
     public let profiles: [Entry]
 }
 
-extension ProfileCatalog {
+extension ProfileLists {
+    /// Every browser's profiles, Chrome's first.
     public var listing: ProfileListing {
-        ProfileListing(profiles: profiles.map { profile in
-            let (account, folder) = SiteAccount.fields(for: profile, in: self)
-            return ProfileListing.Entry(
-                folder: profile.directory,
-                account: profile.email.isEmpty ? nil : profile.email,
-                name: profile.name,
-                windowLabel: profile.windowLabel,
-                sharedWith: sharingLabel(with: profile).map(\.directory),
-                site: .init(account: account, profile: folder)
-            )
+        ProfileListing(profiles: catalogs.flatMap { catalog in
+            catalog.profiles.map { profile in
+                let (account, folder) = SiteAccount.fields(for: profile, in: catalog)
+                let reachable = Placement.openingElsewhere(profile, in: catalog, lists: self) == nil
+                return ProfileListing.Entry(
+                    browser: catalog.browser.id,
+                    folder: profile.directory,
+                    account: profile.email.isEmpty ? nil : profile.email,
+                    name: profile.name,
+                    windowLabel: profile.windowLabel,
+                    sharedWith: catalog.sharingLabel(with: profile).map(\.directory),
+                    site: reachable ? .init(account: account, profile: folder) : nil
+                )
+            }
         })
     }
 }

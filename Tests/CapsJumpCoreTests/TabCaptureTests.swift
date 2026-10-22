@@ -19,7 +19,7 @@ import Testing
     }
 
     @Test func aSharedLabelNamesNoProfile() {
-        let c = ProfileCatalog(profiles: [
+        let c = chromeCatalog([
             ChromeProfile(directory: "A", name: "Work", email: "", givenName: ""),
             ChromeProfile(directory: "B", name: "Work", email: "", givenName: ""),
             ChromeProfile(directory: "C", name: "Home", email: "", givenName: ""),
@@ -29,7 +29,7 @@ import Testing
     }
 
     @Test func theLongestLabelWinsWhenOneEndsAnother() {
-        let c = ProfileCatalog(profiles: [
+        let c = chromeCatalog([
             ChromeProfile(directory: "A", name: "B", email: "", givenName: ""),
             ChromeProfile(directory: "C", name: "A – B", email: "", givenName: ""),
         ])
@@ -38,7 +38,7 @@ import Testing
     }
 
     @Test func oneProfileNeedsNoTitle() throws {
-        let c = ProfileCatalog(profiles: [ChromeProfile(directory: "Default", name: "Person 1", email: "", givenName: "")])
+        let c = chromeCatalog([ChromeProfile(directory: "Default", name: "Person 1", email: "", givenName: "")])
         #expect(c.profile(forTitle: "x - Google Chrome")?.directory == "Default")
         #expect(c.profile(forTitle: "")?.directory == "Default")
         #expect(c.profile(forTitle: nil)?.directory == "Default")
@@ -113,16 +113,25 @@ import Testing
             account: nobody@x.com
             open: https://github.com/
         """)
-        let acme = try #require(c.profile(directory: "Profile 1"))
-        let globex = try #require(c.profile(directory: "Profile 15"))
-        let sam = try #require(c.profile(directory: "Profile 17"))
-        func existing(_ url: String, _ profile: ChromeProfile) -> String? {
-            TabCapture.existingSite(for: url, profile: profile, in: config, catalog: c)?.name
+        let acme = ProfileID(.chrome, "Profile 1")
+        let globex = ProfileID(.chrome, "Profile 15")
+        let sam = ProfileID(.chrome, "Profile 17")
+        func existing(_ url: String, _ profile: ProfileID) -> String? {
+            TabCapture.existingSite(for: url, profile: profile, in: config, lists: lists([.chrome: .read(c)]))?.name
         }
         #expect(existing("https://github.com/stigmer/capsjump/pulls/15", acme) == "prs")
         #expect(existing("https://www.github.com/settings", acme) == "github")
         #expect(existing("https://github.com/stigmer/capsjump/pulls", globex) == "github-globex")
         #expect(existing("https://github.com/", sam) == nil)
         #expect(existing("https://gitlab.com/", acme) == nil)
+    }
+
+    @Test func aBraveTabIsMatchedByItsBrowserToo() throws {
+        // Brave reuses Chrome's folder names: Chrome's Profile 1 is not Brave's.
+        let both = lists([.chrome: .read(try catalog()), .brave: read(#"{"profile": {"info_cache": {"Profile 1": {"name": "Parents"}, "Profile 2": {"name": "Kids"}}}}"#, .brave)])
+        let config = try ConfigParser.parse("sites:\n  - name: chrome-gh\n    account: alex@acme.dev\n    profile: Profile 1\n    open: https://github.com/\n  - name: mail\n    account: Parents\n    open: https://github.com/\n")
+        #expect(TabCapture.existingSite(for: "https://github.com/", profile: ProfileID(.brave, "Profile 1"), in: config, lists: both)?.name == "mail")
+        #expect(TabCapture.existingSite(for: "https://github.com/", profile: ProfileID(.chrome, "Profile 1"), in: config, lists: both)?.name == "chrome-gh")
+        #expect(TabCapture.existingSite(for: "https://github.com/", profile: ProfileID(.brave, "Profile 2"), in: config, lists: both) == nil)
     }
 }

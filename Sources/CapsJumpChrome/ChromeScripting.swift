@@ -1,7 +1,9 @@
-// Chrome through Apple Events: its windows' ids, names and modes, a window's tabs, and
-// focusing a tab. One compiled script holds three handlers, and each call passes its values
-// as typed Apple Event parameters, so no value is ever spliced into script text. Chrome
-// reports window ids as text, and they go back to it as text.
+// A browser through Apple Events (Chrome's scripting, which Brave answers too): its windows'
+// ids, names and modes, a window's tabs, and focusing a tab. One compiled script per browser
+// holds three handlers; only the browser's bundle id, from the fixed table, is written into
+// its text, and each call passes its values as typed Apple Event parameters, so no value is
+// ever spliced into script text. Chrome reports window ids as text, and they go back to it as
+// text.
 
 import AppKit
 import Carbon
@@ -9,34 +11,34 @@ import CapsJumpCore
 
 @MainActor
 public final class ChromeScripting {
-    private static let source = """
+    private static func source(_ browser: Browser) -> String { """
     on windowlist()
-    	tell application id "\(Identity.chromeBundleID)"
+    	tell application id "\(browser.bundleID)"
     		return {id of every window, name of every window, mode of every window}
     	end tell
     end windowlist
 
     on tablist(wid)
-    	tell application id "\(Identity.chromeBundleID)"
+    	tell application id "\(browser.bundleID)"
     		set w to window id wid
     		return {URL of every tab of w, active tab index of w}
     	end tell
     end tablist
 
     on focustab(wid, tabIdx)
-    	tell application id "\(Identity.chromeBundleID)"
+    	tell application id "\(browser.bundleID)"
     		set w to window id wid
     		if minimized of w then set minimized of w to false
     		set active tab index of w to tabIdx
     		set index of w to 1
     	end tell
     end focustab
-    """
+    """ }
 
     private let script: NSAppleScript
 
-    public init() throws(ChromeError) {
-        guard let script = NSAppleScript(source: Self.source) else {
+    public init(browser: Browser) throws(ChromeError) {
+        guard let script = NSAppleScript(source: Self.source(browser)) else {
             throw .script(code: 0, message: "the script could not be created")
         }
         var error: NSDictionary?

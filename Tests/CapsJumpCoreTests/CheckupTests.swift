@@ -12,8 +12,17 @@ import Testing
         linkHandler: { ["https": "Safari", "slack": "Slack"][$0.scheme ?? ""] }
     )
 
-    private func run(_ config: String?, _ state: String? = localState) -> [Finding] {
-        Checkup.run(configText: config, configPath: "~/.capsjump.yaml", localState: state.map { Data($0.utf8) }, localStatePath: "Local State", lookup: Self.lookup)
+    /// Chrome's profile list is `state`, missing when nil; Brave's is `brave`, not installed when nil.
+    private func run(_ config: String?, _ state: String? = localState, brave: CatalogRead? = nil) -> [Finding] {
+        var chrome = CatalogRead.missing(path: "/Users/kim/Library/Application Support/Google/Chrome/Local State")
+        if let state {
+            do {
+                chrome = .read(try ProfileCatalog.parse(localState: Data(state.utf8), browser: .chrome))
+            } catch {
+                chrome = .unreadable(error.description)
+            }
+        }
+        return Checkup.run(configText: config, configPath: "~/.capsjump.yaml", lists: lists([.chrome: chrome, .brave: brave ?? .notInstalled]), lookup: Self.lookup)
     }
 
     private static let oneSite = "sites:\n  - name: github\n    account: alex@globex.io\n    open: https://github.com\n"
@@ -90,5 +99,29 @@ import Testing
         let findings = run("sites:\n  - name: a\n    profile: A\n    open: https://x.com\n", state)
         #expect(findings.map(\.level) == [.note, .ok])
         #expect(findings.first?.text.contains("always opens a new tab, because B carries the same label") == true)
+    }
+
+    private static let brave = read(#"{"profile": {"info_cache": {"Default": {"name": "Work"}, "Profile 5": {"name": "Parents"}}}}"#, .brave)
+
+    @Test func aBraveSiteSaysItsBrowser() {
+        let config = Self.oneSite + "  - name: mail\n    account: Parents\n    open: https://mail.google.com\n"
+        #expect(run(config, brave: Self.brave).prefix(2) == [
+            Finding(.ok, "github → Profile 15, windows labelled “Alex (globex.io)”"),
+            Finding(.ok, "mail → Brave, Profile 5, windows labelled “Parents”"),
+        ])
+    }
+
+    @Test func aNameInBothSaysItOpensInChrome() {
+        let config = "sites:\n  - name: work\n    account: Work\n    open: https://x.com\n"
+        #expect(run(config, brave: Self.brave).first == Finding(
+            .note, "work → Chrome, Profile 9, windows labelled “Alex (Work)”; Brave has a profile named “Work” too, and a name in both opens in Chrome"
+        ))
+    }
+
+    @Test func aRefusedListIsOneProblem() {
+        let config = "sites:\n  - name: a\n    account: Parents\n    open: https://a.com\n  - name: b\n    account: Kids\n    open: https://b.com\n"
+        #expect(run(config, brave: .refused(path: "/b/Local State")).filter { $0.level == .problem } == [
+            Finding(.problem, "macOS won't let CapsJump read Brave's profile list at /b/Local State"),
+        ])
     }
 }

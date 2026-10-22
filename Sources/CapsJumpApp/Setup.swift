@@ -28,7 +28,7 @@ enum Setup {
     }
 
     static var chromeInstalled: Bool {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: Identity.chromeBundleID) != nil
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: Browser.chrome.bundleID) != nil
     }
 
     /// Every copy of CapsJump on this Mac, and this one, by path.
@@ -37,14 +37,14 @@ enum Setup {
 
     /// Automation of Chrome as it stands; unknown while Chrome is closed.
     static func chromeAccess() async -> PermissionState {
-        guard ChromeLauncher.runningChrome != nil else { return .unknown }
-        return await Permissions.automation(ask: false)
+        guard ChromeLauncher.running(.chrome) != nil else { return .unknown }
+        return await Permissions.automation(of: .chrome, ask: false)
     }
 
     /// Starts Chrome when it is closed, then asks for Automation of it.
     static func askForChrome() async throws(ChromeError) -> PermissionState {
-        _ = try await ChromeLauncher.start()
-        return await Permissions.automation(ask: true)
+        _ = try await ChromeLauncher.start(.chrome)
+        return await Permissions.automation(of: .chrome, ask: true)
     }
 
     static func open(_ pane: Pane) {

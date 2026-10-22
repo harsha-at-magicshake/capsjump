@@ -32,17 +32,18 @@ If `file` says there is no config, ask which they want:
 - CapsJump's starter: `capsjump init` writes the window keys (Caps Lock + the arrows snaps the front window to a half, F fills the screen) and an example `github` site in their first Chrome account. Then add what they asked for.
 - Only the keys they asked for, in a new file you write.
 
-## 3. Map their words to Chrome accounts (sites only)
+## 3. Map their words to browser accounts (sites only)
 
-Run `capsjump profiles --json`. Each profile has:
+Run `capsjump profiles --json`. It lists Chrome's profiles, then Brave's. Each profile has:
 
-- `folder`: Chrome's folder for it (`Default`, `Profile 3`).
+- `browser`: `chrome` or `brave`.
+- `folder`: the browser's folder for it (`Default`, `Profile 3`).
 - `account`: the signed-in email, or `null` when nobody is signed in.
-- `name`, `windowLabel`: the names Chrome shows for it.
+- `name`, `windowLabel`: the names the browser shows for it.
 - `sharedWith`: other folders whose windows carry the same label.
-- `site`: exactly what a site in this profile writes.
+- `site`: exactly what a site in this profile writes; `null` when Chrome has a profile of the same name.
 
-"My work account" or "the acme one" picks a profile only when exactly one fits its account, name or label. Otherwise list the ones that could fit and ask. Never guess an email. Copy the chosen profile's `site` fields into the site as given: `account` always, `profile` only when it is there. If `sharedWith` isn't empty, tell the person that the site will always open a new tab there, because Chrome's windows for those profiles can't be told apart.
+"My work account" or "the acme one" picks a profile only when exactly one fits its account, name or label. Otherwise list the ones that could fit and ask. Never guess an email. Copy the chosen profile's `site` fields into the site as given: `account` always, `profile` only when it is there. A site names no browser: its account picks one. A name only Brave has opens in Brave; a name both browsers have, and an email, open in Chrome. So someone who uses both gives their profiles different names: when `site` is `null`, tell them no site can open in that Brave profile until they rename it or Chrome's. If `sharedWith` isn't empty, tell the person that the site will always open a new tab there, because Chrome's windows for those profiles can't be told apart.
 
 ## 4. Edit
 
@@ -98,7 +99,7 @@ keys:
 | Action | Value |
 | --- | --- |
 | `app` | An app's name (`Slack`), or a path to an .app starting with `/` or `~/`. It comes forward, starting if needed. |
-| `site` | The `name` of a site under `sites:`. Lands on that site's tab in its Chrome account, or opens it there. |
+| `site` | The `name` of a site under `sites:`. Lands on that site's tab in its account, in Chrome or Brave, or opens it there. |
 | `window` | A move for the front window: `left-half`, `right-half`, `top-half`, `bottom-half`, `maximize` (fills the screen, not macOS full screen). |
 | `url` | Any link with a scheme (`slack://…`, `zoommtg://…`, `https://…`), opened as a click would, afresh each time. |
 
@@ -107,7 +108,7 @@ keys:
 | Field | |
 | --- | --- |
 | `name` | Lower-case letters, digits and hyphens. Also the link `capsjump://<name>`. |
-| `account` | From `site.account` in `capsjump profiles --json`. |
+| `account` | From `site.account` in `capsjump profiles --json`. It also picks the browser: Brave when only Brave has the name, else Chrome. |
 | `profile` | From `site.profile`, only when it is given there. |
 | `open` | The page opened when no tab matches. |
 | `match` | Optional. URL prefixes without the scheme, most specific first; the default is `open`'s host (`github.com/`). |

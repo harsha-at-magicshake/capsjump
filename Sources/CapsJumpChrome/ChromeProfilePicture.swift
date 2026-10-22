@@ -27,9 +27,9 @@ public enum ChromeProfilePicture {
     /// The largest side kept, in pixels: 16 points at twice the screen's scale, with room.
     public static let largest = 64
 
-    /// The picture file of a Chrome profile folder such as `Profile 1`.
-    public static func file(profile: String, name: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
-        Paths.chromeData(home: home).appendingPathComponent(profile).appendingPathComponent(name)
+    /// The picture file of a profile folder such as `Profile 1`.
+    public static func file(browser: Browser, profile: String, name: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+        browser.profileFolder(profile, home: home).appendingPathComponent(name)
     }
 
     /// The picture as a PNG of at most `largest` pixels a side.
