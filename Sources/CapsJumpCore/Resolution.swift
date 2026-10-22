@@ -14,7 +14,7 @@ public struct Target: Sendable, Equatable {
     public let onlyProfile: Bool
     public let browser: Browser
 
-    public init(site: Site, profile: ChromeProfile, sharedLabelWith: [ChromeProfile], onlyProfile: Bool, browser: Browser = .chrome) {
+    public init(site: Site, profile: ChromeProfile, sharedLabelWith: [ChromeProfile], onlyProfile: Bool, browser: Browser) {
         self.site = site
         self.profile = profile
         self.sharedLabelWith = sharedLabelWith

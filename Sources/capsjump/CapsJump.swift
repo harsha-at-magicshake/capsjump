@@ -1,8 +1,8 @@
-// The capsjump command: writes, checks and tidies the config, lists Chrome's and Brave's profiles, and
-// hands links to CapsJump.app. It never talks to Chrome itself: the app holds the
-// permissions, so `jump` and `setup` go through macOS's link handling to it. `check` also
-// reads whether the app runs and whether Caps Lock is mapped, the two things the keys need;
-// `pause` and `resume` reach the running app by link, and `quit` asks it to quit.
+// The capsjump command: writes, checks and tidies the config, lists Chrome's and Brave's
+// profiles, and hands links to CapsJump.app. It never talks to Chrome itself: the app holds
+// the permissions, so `jump` and `setup` go through macOS's link handling to it. `check`
+// also reads whether the app runs and whether Caps Lock is mapped, the two things the keys
+// need; `pause` and `resume` reach the running app by link, and `quit` asks it to quit.
 // `profiles --json` and `check --json` are for scripts and coding agents: what a site in
 // each profile writes, and what is wrong in the file apart from what is wrong with the app.
 

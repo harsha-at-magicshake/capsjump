@@ -222,7 +222,7 @@ final class AddTab: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var expected: String?
 
-    func open(_ tab: FrontTab?, browser: Browser = .chrome) {
+    func open(_ tab: FrontTab?, browser: Browser) {
         if let window {
             AppWindows.show(window)
             return

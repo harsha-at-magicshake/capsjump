@@ -38,13 +38,13 @@ enum Setup {
     /// Automation of Chrome as it stands; unknown while Chrome is closed.
     static func chromeAccess() async -> PermissionState {
         guard ChromeLauncher.running(.chrome) != nil else { return .unknown }
-        return await Permissions.automation(ask: false)
+        return await Permissions.automation(of: .chrome, ask: false)
     }
 
     /// Starts Chrome when it is closed, then asks for Automation of it.
     static func askForChrome() async throws(ChromeError) -> PermissionState {
-        _ = try await ChromeLauncher.start()
-        return await Permissions.automation(ask: true)
+        _ = try await ChromeLauncher.start(.chrome)
+        return await Permissions.automation(of: .chrome, ask: true)
     }
 
     static func open(_ pane: Pane) {

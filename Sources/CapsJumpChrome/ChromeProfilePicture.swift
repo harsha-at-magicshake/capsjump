@@ -28,7 +28,7 @@ public enum ChromeProfilePicture {
     public static let largest = 64
 
     /// The picture file of a profile folder such as `Profile 1`.
-    public static func file(browser: Browser = .chrome, profile: String, name: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+    public static func file(browser: Browser, profile: String, name: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
         browser.profileFolder(profile, home: home).appendingPathComponent(name)
     }
 

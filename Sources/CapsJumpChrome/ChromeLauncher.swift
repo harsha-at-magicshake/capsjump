@@ -1,9 +1,9 @@
-// Opens a URL in one profile of a browser (Chrome, or Brave, which works the same way),
-// the way `open -na "Google Chrome" --args --profile-directory=<dir> <url>` does: a new
+// Opens a URL in one profile of a browser (Chrome, or Brave, which works the same way), the
+// way `open -na "Google Chrome" --args --profile-directory=<dir> <url>` does: a new
 // instance is asked for, which hands the URL to the running browser (a new tab in that
-// profile's window, or a new window) or starts it when none runs. Done through NSWorkspace, so no process is spawned. An open
-// returns once that new instance has handed the page over and quit, so the next jump's
-// script cannot reach the quitting process.
+// profile's window, or a new window) or starts it when none runs. Done through NSWorkspace,
+// so no process is spawned. An open returns once that new instance has handed the page over
+// and quit, so the next jump's script cannot reach the quitting process.
 
 import AppKit
 import CapsJumpCore
@@ -15,11 +15,11 @@ public enum ChromeLauncher {
     private static let handoverReads = 40
     private static let handoverPause = Duration.milliseconds(50)
 
-    public static func running(_ browser: Browser = .chrome) -> NSRunningApplication? {
+    public static func running(_ browser: Browser) -> NSRunningApplication? {
         NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID).first { !$0.isTerminated }
     }
 
-    public static func open(_ url: URL, in browser: Browser = .chrome, profileDirectory: String) async throws(ChromeError) {
+    public static func open(_ url: URL, in browser: Browser, profileDirectory: String) async throws(ChromeError) {
         let before = running(browser)
         let launched = try await launch(browser, arguments: ["--profile-directory=\(profileDirectory)", url.absoluteString], activates: true, newInstance: true)
         await Handover.wait(launched: launched, before: before, isGone: { launched.isTerminated }, reads: handoverReads) {
@@ -28,7 +28,7 @@ public enum ChromeLauncher {
     }
 
     /// Starts the browser without asking it for any page, and waits until it runs.
-    public static func start(_ browser: Browser = .chrome, timeout: Duration = .seconds(20)) async throws(ChromeError) -> NSRunningApplication {
+    public static func start(_ browser: Browser, timeout: Duration = .seconds(20)) async throws(ChromeError) -> NSRunningApplication {
         if let running = running(browser) { return running }
         try await launch(browser, arguments: [], activates: false, newInstance: false)
         let clock = ContinuousClock()

@@ -27,7 +27,7 @@ public enum Permissions {
     /// Whether CapsJump may send the browser Apple Events; with `ask`, macOS shows its
     /// request without any command reaching the browser. Blocks while the request is up,
     /// so it runs off the main thread.
-    public static func automation(of browser: Browser = .chrome, ask: Bool) async -> PermissionState {
+    public static func automation(of browser: Browser, ask: Bool) async -> PermissionState {
         let bundleID = browser.bundleID
         return await Task.detached {
             let target = NSAppleEventDescriptor(bundleIdentifier: bundleID)

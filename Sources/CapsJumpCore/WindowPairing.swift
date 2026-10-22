@@ -44,7 +44,8 @@ public enum WindowPairing {
     }
 
     /// Whether the title ends in the profile's label: after "–" as Chrome writes it, or
-    /// after " - " as Brave does (`<page> - Brave - <label>`, measured on macOS 27).
+    /// after " - ". Brave 1.97 wrote both: `<page> - Brave - <label>` on macOS 27, and
+    /// `<page> - Brave – <label>` on macOS 26.2 with several profiles.
     public static func title(_ title: String, endsWithLabel label: String) -> Bool {
         title.hasSuffix("\u{2013} \(label)") || title.hasSuffix(" - \(label)")
     }

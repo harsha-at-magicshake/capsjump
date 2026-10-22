@@ -19,7 +19,7 @@ import Testing
     }
 
     @Test func aSharedLabelNamesNoProfile() {
-        let c = ProfileCatalog(profiles: [
+        let c = chromeCatalog([
             ChromeProfile(directory: "A", name: "Work", email: "", givenName: ""),
             ChromeProfile(directory: "B", name: "Work", email: "", givenName: ""),
             ChromeProfile(directory: "C", name: "Home", email: "", givenName: ""),
@@ -29,7 +29,7 @@ import Testing
     }
 
     @Test func theLongestLabelWinsWhenOneEndsAnother() {
-        let c = ProfileCatalog(profiles: [
+        let c = chromeCatalog([
             ChromeProfile(directory: "A", name: "B", email: "", givenName: ""),
             ChromeProfile(directory: "C", name: "A – B", email: "", givenName: ""),
         ])
@@ -38,7 +38,7 @@ import Testing
     }
 
     @Test func oneProfileNeedsNoTitle() throws {
-        let c = ProfileCatalog(profiles: [ChromeProfile(directory: "Default", name: "Person 1", email: "", givenName: "")])
+        let c = chromeCatalog([ChromeProfile(directory: "Default", name: "Person 1", email: "", givenName: "")])
         #expect(c.profile(forTitle: "x - Google Chrome")?.directory == "Default")
         #expect(c.profile(forTitle: "")?.directory == "Default")
         #expect(c.profile(forTitle: nil)?.directory == "Default")

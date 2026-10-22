@@ -146,7 +146,7 @@ import Testing
     }
 
     @Test func starterIsCanonicalAndUsesTheFirstAccount() throws {
-        let catalog = ProfileCatalog(profiles: [
+        let catalog = chromeCatalog([
             ChromeProfile(directory: "Profile 1", name: "acme.dev", email: "alex@acme.dev", givenName: "Alex"),
             ChromeProfile(directory: "Profile 26", name: "kim@initech.com", email: "", givenName: ""),
         ])
@@ -166,7 +166,7 @@ import Testing
 
         // Without Chrome's accounts there is no example site: a made-up account would be
         // the first problem a new config shows.
-        for catalog in [nil, ProfileCatalog(profiles: [])] {
+        for catalog in [nil, chromeCatalog([])] {
             let offline = StarterConfig.render(catalog: catalog)
             #expect(ConfigWriter.isCanonical(offline))
             let read = try ConfigParser.parse(offline)

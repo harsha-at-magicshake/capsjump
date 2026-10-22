@@ -1,12 +1,13 @@
 // Runs the keys from launch to quit, and receives every capsjump:// link. Key actions and
 // links run one at a time, in arrival order: a site jumps, an app comes forward, a window
 // snaps, a link opens, `_setup` opens the Welcome window, and Add Current Tab reads Chrome
-// or Brave (the one in front, else the one used last) before its window opens. The
-// Welcome window also opens by itself: on a launch from Finder, Spotlight or login while
-// CapsJump isn't set up (until the person has closed it once), when the app is opened again while it runs and isn't set up (set up, the config
-// window opens instead), and once per launch when a jump or Add Current Tab fails for want
-// of a permission. Apart from macOS's own Accessibility box, which macOS raises by itself,
-// nothing asks for a permission until the person presses its button there.
+// or Brave (the one in front, else the one used last, else one that runs) before its window
+// opens. The Welcome window also opens by itself: on a launch from Finder, Spotlight or
+// login while CapsJump isn't set up (until the person has closed it once), when the app is
+// opened again while it runs and isn't set up (set up, the config window opens instead),
+// and once per launch when a jump or Add Current Tab fails for want of a permission. Apart
+// from macOS's own Accessibility box, which macOS raises by itself, nothing asks for a
+// permission until the person presses its button there.
 // Every key that runs without a failure is reported to the Welcome window, whose last step
 // waits for one.
 // Quitting (from the menu bar too), logging out, SIGTERM and SIGINT all go through
@@ -243,20 +244,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         logger.notice("key: \(action.description, privacy: .public)")
         let frontApp = NSWorkspace.shared.frontmostApplication?.localizedName
         do {
+            var browser: Browser?
             switch action {
             case let .site(name):
-                guard await jump(to: name) else { return }
+                guard let outcome = await jump(to: name) else { return }
+                browser = outcome.browser
             case let .app(target):
                 try await Launcher.open(target)
             case let .url(url):
                 try Launcher.open(url)
             case let .window(position):
                 try WindowMover.move(position)
-            }
-            var browser = Browser.chrome
-            if case let .site(name) = action, let site = (try? Inputs.config())?.site(named: name),
-               let target = try? Placement.resolve(site, in: Inputs.lists()) {
-                browser = target.browser
             }
             welcome.keyWorked(WelcomeWording.worked(action, frontApp: frontApp, browser: browser))
         } catch let error as LaunchError {
@@ -269,21 +267,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// True when the jump landed; a link's jump has no one waiting on it.
+    /// What the jump did, or nil when it failed; a link's jump has no one waiting on it.
     @discardableResult
-    private func jump(to name: String) async -> Bool {
+    private func jump(to name: String) async -> Outcome? {
         let started = ContinuousClock.now
         do {
             let outcome = try await jumper.jump(to: name)
             let elapsed = ContinuousClock.now - started
             logger.notice("jump \(outcome.description, privacy: .public) in \(elapsed.milliseconds, privacy: .public) ms")
-            return true
+            return outcome
         } catch {
             fail(error.description, opensWelcome: error.isMissingPermission)
             if error.isMissingPermission {
                 openWelcomeForFailure("The site \(name) needed \(error.missingPermission).")
             }
-            return false
+            return nil
         }
     }
 
@@ -351,7 +349,7 @@ extension ChromeError {
     }
 
     /// The permission, as the Welcome window's rows name it.
-    func missingPermission(in browser: Browser = .chrome) -> String {
+    func missingPermission(in browser: Browser) -> String {
         self == .automationDenied ? "access to \(browser)" : "Accessibility"
     }
 }

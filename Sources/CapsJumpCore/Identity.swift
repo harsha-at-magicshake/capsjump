@@ -14,5 +14,4 @@ public enum Paths {
     public static func config(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
         home.appendingPathComponent(".capsjump.yaml")
     }
-
 }

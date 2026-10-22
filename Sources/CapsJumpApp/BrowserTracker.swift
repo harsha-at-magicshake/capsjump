@@ -23,11 +23,12 @@ final class BrowserTracker {
         }
     }
 
-    /// The browser in front, else the last one in front while it still runs, else Chrome.
+    /// The browser in front, else the last one in front while it still runs, else one that
+    /// runs, Chrome first; with none running, Chrome, which then says it has no window open.
     func tabBrowser() -> Browser {
         if let front = NSWorkspace.shared.frontmostApplication.flatMap(Self.browser) { return front }
         if let last, ChromeLauncher.running(last) != nil { return last }
-        return .chrome
+        return Browser.known.first { ChromeLauncher.running($0) != nil } ?? .chrome
     }
 
     private nonisolated static func browser(_ app: NSRunningApplication) -> Browser? {

@@ -14,7 +14,7 @@ import UniformTypeIdentifiers
     private static func home() throws -> URL {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent("picture-\(UUID().uuidString)")
         try FileManager.default.createDirectory(
-            at: ChromeProfilePicture.file(profile: "Profile 1", name: "x", home: home).deletingLastPathComponent(),
+            at: ChromeProfilePicture.file(browser: .chrome, profile: "Profile 1", name: "x", home: home).deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
         return home
@@ -43,7 +43,7 @@ import UniformTypeIdentifiers
     }
 
     @Test func aLargePictureComesBackSmall() throws {
-        let file = ChromeProfilePicture.file(profile: "Profile 1", name: "Google Profile Picture.png", home: try Self.home())
+        let file = ChromeProfilePicture.file(browser: .chrome, profile: "Profile 1", name: "Google Profile Picture.png", home: try Self.home())
         try Self.png(side: 256).write(to: file)
         let data = try ChromeProfilePicture.picture(in: file).get()
         #expect(data.starts(with: [0x89, 0x50, 0x4E, 0x47]))
@@ -51,19 +51,19 @@ import UniformTypeIdentifiers
     }
 
     @Test func aSmallPictureKeepsItsSize() throws {
-        let file = ChromeProfilePicture.file(profile: "Profile 1", name: "p.png", home: try Self.home())
+        let file = ChromeProfilePicture.file(browser: .chrome, profile: "Profile 1", name: "p.png", home: try Self.home())
         try Self.png(side: 32).write(to: file)
         #expect(try Self.side(of: ChromeProfilePicture.picture(in: file).get()) == (32, 32))
     }
 
     @Test func everyWayThereIsNoPicture() throws {
         let home = try Self.home()
-        let missing = ChromeProfilePicture.file(profile: "Profile 1", name: "none.png", home: home)
+        let missing = ChromeProfilePicture.file(browser: .chrome, profile: "Profile 1", name: "none.png", home: home)
         #expect(ChromeProfilePicture.picture(in: missing) == .failure(.noFile))
-        let text = ChromeProfilePicture.file(profile: "Profile 1", name: "text.png", home: home)
+        let text = ChromeProfilePicture.file(browser: .chrome, profile: "Profile 1", name: "text.png", home: home)
         try Data("not a picture".utf8).write(to: text)
         #expect(ChromeProfilePicture.picture(in: text) == .failure(.notAnImage))
-        let empty = ChromeProfilePicture.file(profile: "Profile 1", name: "empty.png", home: home)
+        let empty = ChromeProfilePicture.file(browser: .chrome, profile: "Profile 1", name: "empty.png", home: home)
         try Data().write(to: empty)
         #expect(ChromeProfilePicture.picture(in: empty) == .failure(.notAnImage))
     }

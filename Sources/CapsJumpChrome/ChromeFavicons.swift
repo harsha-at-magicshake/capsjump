@@ -35,7 +35,7 @@ public enum ChromeFavicons {
     static let largest = 64
 
     /// The `Favicons` file of a profile folder such as `Profile 1`.
-    public static func file(browser: Browser = .chrome, profile: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+    public static func file(browser: Browser, profile: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
         browser.profileFolder(profile, home: home).appendingPathComponent("Favicons")
     }
 

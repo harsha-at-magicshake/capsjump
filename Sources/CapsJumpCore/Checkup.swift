@@ -1,6 +1,7 @@
 // What `capsjump check` reports about the config and the browsers' profiles: every problem,
 // for each site the profile and window label it resolves to (and its browser, when it isn't
-// Chrome or Brave has the name too), and for each key what it does: the app it finds, the site, the window position, or the app that opens its link.
+// Chrome or Brave has the name too), and for each key what it does: the app it finds, the
+// site, the window position, or the app that opens its link.
 // Each site's and key's finding is its own function, which the editing window shows beside
 // its row. The disk and the link handlers are injected, so every line is tested. Whether
 // the file is in the layout CapsJump writes is a note of its own, apart from `run`, which

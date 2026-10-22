@@ -1,21 +1,30 @@
 // One jump, live: read the config and every browser's profiles afresh (so edits need no
 // reload), gather the site's browser's windows and titles, let Core decide, and carry the
-// decision out. An open
-// ends once a jump to the site would find the page's tab, so the next key lands on it.
+// decision out. An open ends once a jump to the site would find the page's tab, so the next
+// key lands on it.
 
 import AppKit
 import CapsJumpCore
 
+/// What a jump did, and in which browser: Brave reuses Chrome's folder names, so a folder
+/// alone doesn't say. Chrome's lines read as they always have, and Brave's name Brave.
 public enum Outcome: Sendable, Equatable, CustomStringConvertible {
-    case focused(site: String, windowID: String, tabIndex: Int)
-    case opened(site: String, profileDirectory: String, reason: OpenReason)
+    case focused(site: String, browser: Browser, windowID: String, tabIndex: Int)
+    case opened(site: String, browser: Browser, profileDirectory: String, reason: OpenReason)
+
+    public var browser: Browser {
+        switch self {
+        case let .focused(_, browser, _, _), let .opened(_, browser, _, _): browser
+        }
+    }
 
     public var description: String {
-        switch self {
-        case let .focused(site, windowID, tabIndex):
-            "\(site): focused tab \(tabIndex) of window \(windowID)"
-        case let .opened(site, profileDirectory, reason):
-            "\(site): opened in \(profileDirectory) (\(reason.rawValue))"
+        let owner = browser == .chrome ? "" : "\(browser)'s "
+        return switch self {
+        case let .focused(site, _, windowID, tabIndex):
+            "\(site): focused tab \(tabIndex) of \(owner)window \(windowID)"
+        case let .opened(site, _, profileDirectory, reason):
+            "\(site): opened in \(owner)\(profileDirectory) (\(reason.rawValue))"
         }
     }
 }
@@ -207,7 +216,7 @@ public final class Jumper {
                 try? await Task.sleep(for: Self.landingPause)
             }
             if let missed { throw .notInFront(missed) }
-            return .focused(site: target.site.name, windowID: windowID, tabIndex: tabIndex)
+            return .focused(site: target.site.name, browser: target.browser, windowID: windowID, tabIndex: tabIndex)
         case let .open(profileDirectory, url, reason):
             try await ChromeLauncher.open(url, in: target.browser, profileDirectory: profileDirectory)
             // Chrome can show the new tab a moment after the open returns; a key pressed
@@ -215,7 +224,7 @@ public final class Jumper {
             await Handover.waitForTab(target: target, reads: Self.tabReads, decide: { try? self.read(target).action }) {
                 try? await Task.sleep(for: Self.tabPause)
             }
-            return .opened(site: target.site.name, profileDirectory: profileDirectory, reason: reason)
+            return .opened(site: target.site.name, browser: target.browser, profileDirectory: profileDirectory, reason: reason)
         }
     }
 }

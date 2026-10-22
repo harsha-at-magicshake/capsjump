@@ -17,7 +17,7 @@ import Testing
         var chrome = CatalogRead.missing(path: "/Users/kim/Library/Application Support/Google/Chrome/Local State")
         if let state {
             do {
-                chrome = .read(try ProfileCatalog.parse(localState: Data(state.utf8)))
+                chrome = .read(try ProfileCatalog.parse(localState: Data(state.utf8), browser: .chrome))
             } catch {
                 chrome = .unreadable(error.description)
             }

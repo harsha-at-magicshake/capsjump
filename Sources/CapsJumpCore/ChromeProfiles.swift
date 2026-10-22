@@ -81,7 +81,7 @@ public struct ProfileCatalog: Sendable, Equatable {
     /// The browser whose `Local State` this is.
     public let browser: Browser
 
-    public init(profiles: [ChromeProfile], browser: Browser = .chrome) {
+    public init(profiles: [ChromeProfile], browser: Browser) {
         self.profiles = profiles
         self.browser = browser
     }
@@ -101,7 +101,7 @@ public struct ProfileCatalog: Sendable, Equatable {
 
     /// Parses a browser's `Local State` (JSON); only `profile.info_cache` and
     /// `profile.profiles_order` are read, and of each profile its names and picture.
-    public static func parse(localState data: Data, browser: Browser = .chrome) throws(ParseError) -> ProfileCatalog {
+    public static func parse(localState data: Data, browser: Browser) throws(ParseError) -> ProfileCatalog {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw .notJSON(browser.name)
         }

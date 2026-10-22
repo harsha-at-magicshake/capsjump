@@ -104,12 +104,13 @@ private let lee = "lee@initech.com"
         #expect(WindowPairing.windows(labelled: "Alex (globex.io)", chrome: chrome, titles: titles, pairing: pairing).count == 1)
     }
 
-    @Test func braveEndsItsTitlesWithAHyphenAndTheLabel() {
-        let brave = [window("1", "Inbox - Gmail"), window("2", "Sign in")]
-        let titles = ["Inbox - Gmail - Brave - Parents", "Sign in - Brave - Work"]
+    @Test func braveEndsItsTitlesWithAHyphenOrADashAndTheLabel() {
+        let brave = [window("1", "Inbox - Gmail"), window("2", "Sign in"), window("3", "New tab")]
+        let titles = ["Inbox - Gmail - Brave - Parents", "Sign in - Brave - Work", "New tab - Brave \u{2013} Personal"]
         let pairing = WindowPairing.pair(chrome: brave, titles: titles)
         #expect(WindowPairing.windows(labelled: "Parents", chrome: brave, titles: titles, pairing: pairing).map(\.window.id) == ["1"])
         #expect(WindowPairing.windows(labelled: "Work", chrome: brave, titles: titles, pairing: pairing).map(\.window.id) == ["2"])
+        #expect(WindowPairing.windows(labelled: "Personal", chrome: brave, titles: titles, pairing: pairing).map(\.window.id) == ["3"])
         #expect(WindowPairing.windows(labelled: "Brave", chrome: brave, titles: titles, pairing: pairing).isEmpty)
     }
 
@@ -133,7 +134,7 @@ private let lee = "lee@initech.com"
             site: Site(name: "claude-kim", account: kim, profile: nil, open: URL(string: "https://claude.ai/new")!, match: match),
             profile: profile,
             sharedLabelWith: shared ? [ChromeProfile(directory: "Profile 27", name: kim, email: "", givenName: "")] : [],
-            onlyProfile: false
+            onlyProfile: false, browser: .chrome
         )
     }
 
@@ -197,7 +198,7 @@ private let lee = "lee@initech.com"
 
     @Test func theOnlyProfileOwnsEveryWindowButAnIncognitoOne() throws {
         // With one profile Chrome leaves the label off: "<page> - Google Chrome".
-        let only = Target(site: target().site, profile: profile, sharedLabelWith: [], onlyProfile: true)
+        let only = Target(site: target().site, profile: profile, sharedLabelWith: [], onlyProfile: true, browser: .chrome)
         let windows = [window("1", "New chat - Claude", incognito: true), window("2", "New chat - Claude")]
         let titles = ["New chat - Claude - Google Chrome (Incognito)", "New chat - Claude - Google Chrome"]
         let normal = tabs(["2": WindowTabs(windowID: "2", urls: ["https://claude.ai/chat/1"], activeIndex: 1)])

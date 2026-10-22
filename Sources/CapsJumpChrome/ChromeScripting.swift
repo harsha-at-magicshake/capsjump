@@ -37,7 +37,7 @@ public final class ChromeScripting {
 
     private let script: NSAppleScript
 
-    public init(browser: Browser = .chrome) throws(ChromeError) {
+    public init(browser: Browser) throws(ChromeError) {
         guard let script = NSAppleScript(source: Self.source(browser)) else {
             throw .script(code: 0, message: "the script could not be created")
         }

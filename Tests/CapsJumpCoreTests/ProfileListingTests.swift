@@ -38,7 +38,7 @@ private extension ProfileCatalog {
     }
 
     @Test func aSharedLabelNamesTheOtherFolders() {
-        let c = ProfileCatalog(profiles: [
+        let c = chromeCatalog([
             ChromeProfile(directory: "A", name: "Work", email: "", givenName: ""),
             ChromeProfile(directory: "B", name: "Work", email: "", givenName: ""),
             ChromeProfile(directory: "C", name: "Home", email: "", givenName: ""),
@@ -47,7 +47,7 @@ private extension ProfileCatalog {
     }
 
     @Test func printsNullForNoAccountAndLeavesOutAProfileTheSiteDoesNotNeed() throws {
-        let c = ProfileCatalog(profiles: [ChromeProfile(directory: "Default", name: "Home", email: "", givenName: "")])
+        let c = chromeCatalog([ChromeProfile(directory: "Default", name: "Home", email: "", givenName: "")])
         #expect(try JSONOutput.render(c.listing) == """
         {
           "profiles" : [
