@@ -144,7 +144,7 @@ Then ask in your own words: "Caps Lock + G should open our pull requests in my w
 
 ## How Caps Lock becomes CapsJump's key
 
-While CapsJump runs, macOS's own key mapping (the one `hidutil` sets) turns Caps Lock into F18, a key no keyboard has, and CapsJump watches for it. Caps Lock then no longer types capitals when pressed alone. Miss SHOUTING? Hold Shift and press Caps Lock: its light comes on and letters type in capitals until you do it again. Holding Caps Lock with a key still runs that key, and saving the config leaves the light as it is. CapsJump gives Caps Lock back whenever it quits: from its own quit, at logout, when stopped, and when uninstalled with Homebrew. If it ever crashes, Caps Lock does nothing until CapsJump starts again or the Mac restarts.
+While CapsJump runs, macOS's own key mapping (the one `hidutil` sets) turns Caps Lock into F18, a key no keyboard has, and CapsJump watches for it. Caps Lock then no longer types capitals when pressed alone. Miss SHOUTING? Hold Shift and press Caps Lock: its light comes on and letters type in capitals until you do it again. Holding Caps Lock with a key still runs that key, and saving the config leaves the light as it is. CapsJump gives Caps Lock back whenever it quits: from its own quit, at logout, when stopped, and when uninstalled with Homebrew. If it ever crashes, Caps Lock does nothing until CapsJump starts again or the Mac restarts, and capitals left on stay on: once CapsJump is back, Shift + Caps Lock switches them off.
 
 macOS keeps every app's shortcuts out of password fields, so the keys do nothing while one has focus and work again as soon as you leave it.
 
